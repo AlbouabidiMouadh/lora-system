@@ -125,7 +125,7 @@ exports.forgotPassword = async (req, res) => {
       await sendEmail({
         to: user.email,
         subject: 'Password Reset Request',
-        text: message,
+        html: message,
       });
 
       sendResponse(res, 200, true, 'Reset email sent successfully');
@@ -175,5 +175,24 @@ exports.resetPassword = async (req, res) => {
     sendResponse(res, 200, true, 'Password reset successfully');
   } catch (err) {
     sendResponse(res, 500, false, 'Error resetting password');
+  }
+};
+
+/**
+ * @function logout
+ * @description Logs out the user by instructing the client to discard the JWT token.
+ * @route POST /api/auth/logout
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} JSON response with success and message
+ */
+exports.logout = async (req, res) => {
+  try {
+    // Since JWT is stateless, no server-side invalidation is needed
+    // Client should discard the token
+    sendResponse(res, 200, true, 'Logout successful');
+  } catch (err) {
+    sendResponse(res, 500, false, 'Error logging out');
   }
 };
