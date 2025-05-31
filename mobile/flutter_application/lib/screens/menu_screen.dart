@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/screens/dashboard_screen.dart';
-import 'package:flutter_application_2/screens/profile_screen.dart';
-import 'package:flutter_application_2/screens/screen_settings.dart';
+import 'package:flutter_application/screens/home_screen.dart';
+import 'package:flutter_application/screens/map_screen.dart';
+import 'package:flutter_application/screens/profile_screen.dart';
+import 'package:flutter_application/screens/settings_screen.dart';
 
-class HomeS extends StatefulWidget {
-  const HomeS({super.key});
+class MenuScreen extends StatefulWidget {
+  const MenuScreen({super.key});
 
   @override
-  State<HomeS> createState() => _HomeSState();
+  State<MenuScreen> createState() => _MenuScreenState();
 }
 
-class _HomeSState extends State<HomeS> {
+class _MenuScreenState extends State<MenuScreen> {
   int _selectedIndex = 0;
 
   static const List<Widget> _widgetOptions = <Widget>[
-    HomeSc(),
+    HomeScreen(),
+    MapScreen(),
     ProfileScreen(),
     SettingsScreen(),
   ];
@@ -45,7 +47,6 @@ class _HomeSState extends State<HomeS> {
             fontWeight: FontWeight.bold,
           ),
         ),
-
         automaticallyImplyLeading: false,
       ),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
@@ -55,6 +56,11 @@ class _HomeSState extends State<HomeS> {
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined),
+            activeIcon: Icon(Icons.map),
+            label: 'Map',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
@@ -68,9 +74,7 @@ class _HomeSState extends State<HomeS> {
           ),
         ],
         currentIndex: _selectedIndex,
-
         selectedItemColor: const Color(0xFF3FA34D),
-
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
@@ -82,8 +86,10 @@ class _HomeSState extends State<HomeS> {
       case 0:
         return 'Home';
       case 1:
-        return 'Profile';
+        return 'Map';
       case 2:
+        return 'Profile';
+      case 3:
         return 'Settings';
       default:
         return 'TECH App';

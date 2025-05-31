@@ -1,27 +1,47 @@
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
-
 import 'package:flutter_application/routes/app_routes.dart';
 
-class Logoscreen extends StatefulWidget {
-  const Logoscreen({super.key});
+class InitialRoute extends StatefulWidget {
+  const InitialRoute({super.key});
 
   @override
-  State<Logoscreen> createState() => _LogoscreenState();
+  State<InitialRoute> createState() => _InitialRouteState();
 }
 
-class _LogoscreenState extends State<Logoscreen> {
-   late Future<String> _initialRouteFuture;
+class _InitialRouteState extends State<InitialRoute> {
+  late Future<String> _initialRouteFuture;
+
   @override
   void initState() {
     super.initState();
     _initialRouteFuture = _getInitialRoute();
+    _initUniLinks();
+  }
+
+  void _initUniLinks() {
+    AppLinks().uriLinkStream.listen((Uri? uri) {
+      if (uri != null) {
+        _handleDeepLink(uri);
+      }
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    print("Uri : $uri");
+    if (uri.host == 'reset-password') {
+      final token = uri.queryParameters['resettoken'];
+      if (token != null) {
+        Navigator.of(
+          context,
+        ).pushNamed(AppRoutes.resetPassword, arguments: {'resettoken': token});
+      }
+    }
   }
 
   Future<String> _getInitialRoute() async {
     try {
-     await Future.delayed(const Duration(seconds: 2));
-      return  await  AppRoutes.getInitialRoute().timeout(
+      return await AppRoutes.getInitialRoute().timeout(
         const Duration(seconds: 3),
         onTimeout: () {
           print('Timeout getting initial route, defaulting to login');
@@ -30,7 +50,7 @@ class _LogoscreenState extends State<Logoscreen> {
       );
     } catch (e) {
       print('Error getting initial route: $e');
-      return AppRoutes.signin;
+      return AppRoutes.signin; // Default route in case of error
     }
   }
 
@@ -41,30 +61,19 @@ class _LogoscreenState extends State<Logoscreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            backgroundColor: Colors.white,
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image(
-                    image: AssetImage('assets/logo.png'),
-                    width: 150,
-                    height: 150,
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    'TECH',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Orbitron',
-                    ),
-                  ),
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Chargement...'),
                 ],
               ),
             ),
           );
         }
+
         if (snapshot.hasError) {
           return Scaffold(
             body: Center(

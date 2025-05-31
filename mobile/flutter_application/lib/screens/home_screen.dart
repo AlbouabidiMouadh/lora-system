@@ -5,13 +5,13 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-class HomeSc extends StatefulWidget {
-  const HomeSc({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
   @override
-  State<HomeSc> createState() => _HomeScState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScState extends State<HomeSc> {
+class _HomeScreenState extends State<HomeScreen> {
   String city = 'Loading...', temperature = '...', description = 'Loading...';
   String station1Name = 'Station 1', station2Name = 'Station 2';
   late WebSocketChannel channel;

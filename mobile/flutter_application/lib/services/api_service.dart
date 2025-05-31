@@ -1,145 +1,209 @@
 import 'dart:convert';
-import 'dart:async';
-import 'package:flutter_application_2/Models/sensor_reading.dart';
+import 'package:flutter_application/config/config.dart';
+import 'package:flutter_application/services/auth_service.dart';
+import 'package:flutter_application/utils/api_exception.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
 
 class ApiService {
-  static const String _baseUrl = 'http://10.0.2.2:8000';
+  final String baseUrl = Config.baseUrl;
+  final AuthService _authService = AuthService();
 
-  static const String _sensorDataEndpoint = '/api/sensor-data/';
-  static const String _pumpEndpoint = '/api/pump/1/';
-
-  static const String _tankLevelEndpoint = '/api/tank/latest/';
-
-  Future<List<SensorReading>> fetchSensorReadings({
-    required DateTime startDate,
-    required DateTime endDate,
-  }) async {
+  // Test server connection
+  Future<bool> testConnection() async {
     try {
-      final String startDateUtc = startDate.toUtc().toIso8601String();
-      final String endDateUtc = endDate.toUtc().toIso8601String();
+      print('Testing server connection...');
+      print('Test URL: $baseUrl/auth/me');
 
-      final Uri uri = Uri.parse('$_baseUrl$_sensorDataEndpoint').replace(
-        queryParameters: {
-          'timestamp__gte': startDateUtc,
-          'timestamp__lt': endDateUtc,
+      final token = await _authService.getToken();
+      if (token == null) {
+        print('No token found, testing basic connection');
+        // If no token, just test the basic connection
+        final response = await http
+            .get(Uri.parse('$baseUrl/auth/login'))
+            .timeout(const Duration(seconds: 5));
+
+        print('Status code (login): ${response.statusCode}');
+        return response.statusCode < 500;
+      }
+
+      // Test with the token
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/auth/me'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      print('Status code: ${response.statusCode}');
+      print('Response: ${response.body}');
+
+      return response.statusCode < 500;
+    } catch (e) {
+      print('Connection test error: $e');
+      return false;
+    }
+  }
+
+  // GET method with authentication token
+  Future<dynamic> get(String endpoint) async {
+    try {
+      // Test connection before each request
+      final isConnected = await testConnection();
+      if (!isConnected) {
+        throw ApiException('No connection to server.');
+      }
+
+      final token = await _authService.getToken();
+      final fullUrl = '$baseUrl/$endpoint';
+      print('Full URL: $fullUrl');
+      print('Token: ${token != null ? 'present' : 'absent'}');
+
+      final response = await http
+          .get(
+            Uri.parse(fullUrl),
+            headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Request timed out. Please try again.');
+            },
+          );
+
+      print('Status code: ${response.statusCode}');
+      print('Raw response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final decodedResponse = jsonDecode(response.body);
+        print('Decoded response: $decodedResponse');
+        return decodedResponse;
+      } else if (response.statusCode == 401) {
+        await _authService.logout();
+        throw ApiException('Session expired. Please log in again.');
+      } else if (response.statusCode == 404) {
+        throw ApiException('Resource not found.');
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } on http.ClientException catch (e) {
+      print('Client error: $e');
+      throw ApiException('Cannot connect to server. Please try again.');
+    } catch (e) {
+      print('Network error: $e');
+      if (e is ApiException) {
+        rethrow;
+      } else {
+        throw Exception('Connection error.');
+      }
+    }
+  }
+
+  // POST method with authentication token
+  Future<dynamic> post(String endpoint, dynamic data) async {
+    try {
+      final token = await _authService.getToken();
+      final fullUrl = '$baseUrl/$endpoint';
+      print('POST request to: $fullUrl');
+      print('Data: $data');
+
+      final response = await http.post(
+        Uri.parse(fullUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      );
+
+      print('Status code: ${response.statusCode}');
+      print('Raw response: ${response.body}');
+      final decodedResponse = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return decodedResponse;
+      } else if (response.statusCode == 401) {
+        throw ApiException('Session expired. Please log in again.');
+      } else {
+        throw ApiException(decodedResponse['message'] ?? 'Server error.');
+      }
+    } catch (e) {
+      print('Network error: $e');
+      if (e is ApiException) {
+        rethrow;
+      } else {
+        throw Exception('Network error: $e');
+      }
+    }
+  }
+
+  // PUT method with authentication token
+  Future<dynamic> put(String endpoint, dynamic data) async {
+    try {
+      final token = await _authService.getToken();
+      final fullUrl = '$baseUrl/$endpoint';
+      print('PUT request to: $fullUrl');
+      print('Data: $data');
+
+      final response = await http.put(
+        Uri.parse(fullUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      );
+
+      print('Status code: ${response.statusCode}');
+      print('Raw response: ${response.body}');
+      final decodedResponse = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return decodedResponse;
+      } else if (response.statusCode == 401) {
+        throw ApiException('Session expired. Please log in again.');
+      } else {
+        throw ApiException(decodedResponse['message'] ?? 'Server error.');
+      }
+    } catch (e) {
+      print('Network error: $e');
+      if (e is ApiException) {
+        rethrow;
+      } else {
+        throw Exception('Network error: $e');
+      }
+    }
+  }
+
+  // DELETE method with authentication token
+  Future<dynamic> delete(String endpoint) async {
+    try {
+      final token = await _authService.getToken();
+      final fullUrl = '$baseUrl/$endpoint';
+      print('DELETE request to: $fullUrl');
+
+      final response = await http.delete(
+        Uri.parse(fullUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
-      debugPrint('[ApiService] Fetching sensor readings from: $uri');
-      final response = await http.get(uri).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        List<dynamic> body = json.decode(response.body);
-        List<SensorReading> readings =
-            body
-                .whereType<Map<String, dynamic>>()
-                .map((item) => SensorReading.fromJson(item))
-                .toList();
-        debugPrint('[ApiService] Fetched ${readings.length} sensor readings.');
-        return readings;
+      print('Status code: ${response.statusCode}');
+      print('Raw response: ${response.body}');
+      final decodedResponse =
+          response.body.isNotEmpty ? jsonDecode(response.body) : {};
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return decodedResponse;
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expired. Please log in again.');
       } else {
-        debugPrint(
-          '[ApiService] Sensor API Error - Status: ${response.statusCode}, Body: ${response.body}',
-        );
-        throw Exception(
-          'Failed to load sensor data. Status code: ${response.statusCode}',
-        );
+        throw ApiException(decodedResponse['message'] ?? 'Server error.');
       }
     } catch (e) {
-      debugPrint('[ApiService] Exception fetching sensor readings: $e');
-
-      throw Exception('Failed to fetch sensor data. Details: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> getPumpStatus() async {
-    final Uri uri = Uri.parse('$_baseUrl$_pumpEndpoint');
-    debugPrint('[ApiService] Fetching pump status from: $uri');
-
-    try {
-      final response = await http
-          .get(uri, headers: {'Accept': 'application/json'})
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        debugPrint('[ApiService] Pump status fetched successfully: $data');
-        return data;
-      } else {
-        debugPrint(
-          '[ApiService] Pump Status API Error - Status: ${response.statusCode}, Body: ${response.body}',
-        );
-        throw Exception(
-          'Failed to load pump status. Status code: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      debugPrint('[ApiService] Exception fetching pump status: $e');
-      throw Exception('Error fetching pump status: $e');
-    }
-  }
-
-  Future<bool> setPumpState(bool isOn) async {
-    final Uri uri = Uri.parse('$_baseUrl$_pumpEndpoint');
-    final body = jsonEncode({'is_on': isOn});
-    debugPrint('[ApiService] Setting pump state to $isOn via PATCH to: $uri');
-
-    try {
-      final response = await http
-          .patch(
-            uri,
-            headers: {'Content-Type': 'application/json; charset=UTF-8'},
-            body: body,
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        debugPrint('[ApiService] Pump state successfully set to $isOn.');
-
-        return true;
-      } else {
-        debugPrint(
-          '[ApiService] Set Pump State API Error - Status: ${response.statusCode}, Body: ${response.body}',
-        );
-        throw Exception(
-          'Failed to set pump state. Status code: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      debugPrint('[ApiService] Exception setting pump state: $e');
-      throw Exception('Error setting pump state: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> getLatestTankLevel() async {
-    final Uri uri = Uri.parse('$_baseUrl$_tankLevelEndpoint');
-    debugPrint('[ApiService] Fetching latest tank level from: $uri');
-    try {
-      final response = await http
-          .get(uri, headers: {'Accept': 'application/json'})
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        debugPrint('[ApiService] Tank level fetched successfully: $data');
-        return data;
-      } else if (response.statusCode == 404) {
-        debugPrint('[ApiService] No tank level data found (404)');
-        return {
-          'error': 'not_found',
-          'message': 'No tank level data available yet.',
-        };
-      } else {
-        debugPrint(
-          '[ApiService] Tank Level API Error - Status: ${response.statusCode}, Body: ${response.body}',
-        );
-        throw Exception('Failed to load tank level (${response.statusCode})');
-      }
-    } catch (e) {
-      debugPrint('[ApiService] Exception fetching tank level: $e');
-      throw Exception('Error fetching tank level: $e');
+      print('Network error: $e');
+      throw Exception('Network error: $e');
     }
   }
 }

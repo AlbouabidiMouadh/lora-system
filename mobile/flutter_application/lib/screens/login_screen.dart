@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application/screens/forgot_password_screen.dart';
+import 'package:flutter_application/screens/home_screen.dart';
+import 'package:flutter_application/screens/menu_screen.dart';
+import 'package:flutter_application/screens/register_screen.dart';
+import 'package:flutter_application/services/auth_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class Signin extends StatefulWidget {
-  const Signin({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
   @override
-  State<Signin> createState() => _SigninState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _SigninState extends State<Signin> {
-  final TextEditingController _usernameController = TextEditingController();
+class _LoginScreenState extends State<LoginScreen> {
+  final AuthService _authService = AuthService();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
@@ -79,12 +85,12 @@ class _SigninState extends State<Signin> {
             ),
             const SizedBox(height: 40),
             _inputField(
-              controller: _usernameController,
+              controller: _emailController,
               icon: Icons.person_outline,
-              hintText: 'Username or Email',
+              hintText: ' Email',
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Please enter username or email';
+                  return 'Please enter email';
                 }
                 return null;
               },
@@ -120,7 +126,12 @@ class _SigninState extends State<Signin> {
               alignment: Alignment.centerRight,
               child: GestureDetector(
                 onTap: () {
-                  Navigator.pushNamed(context, '/forgot_password');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ForgotPasswordScreen(),
+                    ),
+                  );
                 },
                 child: const Padding(
                   padding: EdgeInsets.only(right: 5.0),
@@ -191,68 +202,12 @@ class _SigninState extends State<Signin> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Or Sign In Using',
-            style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-          ),
-          const SizedBox(height: 25),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildSocialButton(
-                'assets/icons/google.svg',
-                onTap: () {
-                  // TODO: Implement Google Sign In
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Google Sign In not implemented."),
-                    ),
-                  );
-                  debugPrint("Google Sign In Tapped");
-                  Future.delayed(const Duration(seconds: 1), () {
-                    if (mounted) {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/home',
-                        (route) => false,
-                      );
-                    }
-                  });
-                },
-              ),
-              _buildSocialButton(
-                Icons.phone_android,
-                isIcon: true,
-                onTap: () {
-                  // TODO: Implement Phone Sign In
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Phone Sign In not implemented."),
-                    ),
-                  );
-                  debugPrint("Phone Sign In Tapped");
-                },
-              ),
-              _buildSocialButton(
-                Icons.mail_outline,
-                isIcon: true,
-                onTap: () {
-                  // TODO: Implement Email Link Sign In (if different from username/password)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Email Sign In not implemented."),
-                    ),
-                  );
-                  debugPrint("Email Sign In Tapped");
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 30),
-
           GestureDetector(
             onTap: () {
-              Navigator.pushReplacementNamed(context, '/signup');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+              );
             },
             child: RichText(
               text: TextSpan(
@@ -350,50 +305,53 @@ class _SigninState extends State<Signin> {
     );
   }
 
-  void _handleLogin(BuildContext context) {
+  void _handleLogin(BuildContext context) async {
     if (_formKey.currentState?.validate() ?? false) {
-      final username = _usernameController.text.trim();
+      final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
-      debugPrint("Login Attempt:\nUsername: $username\nPassword: $password");
-
-      // --- TODO: Implement Actual Login Logic Here ---
-      // 1. API call to authenticate the user with username/password
-      // 2. Based on the API response:
-      bool loginSuccess = true; // REPLACE WITH ACTUAL API RESPONSE CHECK
-
-      if (loginSuccess) {
+      debugPrint("Login Attempt:\nUsername: $email\nPassword: $password");
+      try {
+        final response = await _authService.login(email, password);
+        debugPrint("Login Response: $response");
+        if (response) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Login Successful!"),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushReplacement(context, 
+            MaterialPageRoute(
+              builder: (context) => const MenuScreen(), // Replace with your home screen
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Login Failed: Invalid credentials."),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Error during login: $e");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Login Successful!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-      } else {
-        // Handle failure:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Login Failed: Invalid credentials."),
+            content: Text("Login Failed: Try again later."),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please correct the errors above."),
-          backgroundColor: Colors.orangeAccent,
-        ),
-      );
-      debugPrint("Login validation failed");
+      // --- TODO: Implement Actual Login Logic Here ---
+      // 1. API call to authenticate the user with username/password
+      // 2. Based on the API response:
     }
-  }
 
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+    @override
+    void dispose() {
+      _emailController.dispose();
+      _passwordController.dispose();
+      super.dispose();
+    }
   }
 }

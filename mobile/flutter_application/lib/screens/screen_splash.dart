@@ -1,6 +1,8 @@
 import 'dart:math';
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/screens/logoscreen.dart';
+import 'package:flutter_application/routes/app_routes.dart';
+import 'package:flutter_application/screens/logoscreen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -57,8 +59,28 @@ class _SplashScreenState extends State<SplashScreen>
         );
       });
     });
+      _initUniLinks();
   }
 
+  void _initUniLinks() {
+    AppLinks().uriLinkStream.listen((Uri? uri) {
+      if (uri != null) {
+        _handleDeepLink(uri);
+      }
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    print("Uri : $uri");
+    if (uri.host == 'reset-password') {
+      final token = uri.queryParameters['resettoken'];
+      if (token != null) {
+        Navigator.of(
+          context,
+        ).pushNamed(AppRoutes.resetPassword, arguments: {'resettoken': token});
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;

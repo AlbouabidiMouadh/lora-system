@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application/routes/app_routes.dart';
+import 'package:flutter_application/screens/forgot_password_screen.dart';
+import 'package:flutter_application/services/auth_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math';
 
-class Signup extends StatefulWidget {
-  const Signup({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<Signup> createState() => _SignupState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _SignupState extends State<Signup> {
-  final TextEditingController _usernameController = TextEditingController();
+class _RegisterScreenState extends State<RegisterScreen> {
+  final AuthService _authService = AuthService();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -84,12 +90,27 @@ class _SignupState extends State<Signup> {
             ),
             const SizedBox(height: 40),
             _inputField(
-              controller: _usernameController,
+              controller: _nameController,
               icon: Icons.person_outline,
-              hintText: 'Username or Email',
+              hintText: 'Full Name',
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a username or email';
+                  return 'Please enter a full name';
+                }
+                if (value.length < 4) {
+                  return 'full Name must be at least 4 characters';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            _inputField(
+              controller: _emailController,
+              icon: Icons.email_outlined,
+              hintText: 'Email',
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter an email';
                 }
                 if (!value.contains('@') && value.length < 4) {
                   return 'Enter a valid email or username (min 4 chars)';
@@ -98,6 +119,23 @@ class _SignupState extends State<Signup> {
               },
             ),
             const SizedBox(height: 16),
+            _inputField(
+              controller: _phoneController,
+              icon: Icons.phone_outlined,
+              hintText: 'Phone Number',
+              keyboardType: TextInputType.phone,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a phone number';
+                }
+                if (value.length < 10) {
+                  return 'Phone number must be at least 10 digits';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
             _inputField(
               controller: _passwordController,
               icon: Icons.lock_outline,
@@ -160,7 +198,12 @@ class _SignupState extends State<Signup> {
               alignment: Alignment.centerRight,
               child: GestureDetector(
                 onTap: () {
-                  Navigator.pushNamed(context, '/forgot_password');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ForgotPasswordScreen(),
+                    ),
+                  );
                 },
                 child: const Padding(
                   padding: EdgeInsets.only(right: 5.0),
@@ -250,64 +293,10 @@ class _SignupState extends State<Signup> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Or Sign Up Using',
-            style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-          ),
-          const SizedBox(height: 25),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildSocialButton(
-                'assets/icons/google.svg',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Google Sign Up not implemented."),
-                    ),
-                  );
-                  debugPrint("Google Sign Up Tapped");
-                  Future.delayed(const Duration(seconds: 1), () {
-                    if (mounted) {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/home',
-                        (route) => false,
-                      );
-                    }
-                  });
-                },
-              ),
-              _buildSocialButton(
-                Icons.phone_android,
-                isIcon: true,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Phone Sign Up not implemented."),
-                    ),
-                  );
-                  debugPrint("Phone Sign Up Tapped");
-                },
-              ),
-              _buildSocialButton(
-                Icons.mail_outline,
-                isIcon: true,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Email Sign Up not implemented."),
-                    ),
-                  );
-                  debugPrint("Email Sign Up Tapped");
-                },
-              ),
-            ],
-          ),
           const SizedBox(height: 30),
           GestureDetector(
             onTap: () {
-              Navigator.pushReplacementNamed(context, '/signin');
+              Navigator.pushReplacementNamed(context, AppRoutes.signin);
             },
             child: RichText(
               text: TextSpan(
@@ -368,6 +357,7 @@ class _SignupState extends State<Signup> {
     required IconData icon,
     required String hintText,
     bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
     Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
@@ -388,6 +378,7 @@ class _SignupState extends State<Signup> {
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
+        keyboardType: keyboardType,
         style: const TextStyle(color: Colors.black87, fontSize: 15),
         decoration: InputDecoration(
           icon: Icon(icon, color: const Color(0xFF47CF38)),
@@ -411,14 +402,20 @@ class _SignupState extends State<Signup> {
         _isLoading = true;
       });
 
-      String username = _usernameController.text.trim();
+      String username = _nameController.text.trim();
+      String email = _emailController.text.trim();
       String password = _passwordController.text.trim();
+      String phoneNumber = _phoneController.text.trim();
       debugPrint("Register Attempt:\nUsername: $username\nPassword: $password");
 
       try {
-        await Future.delayed(const Duration(seconds: 2));
+        final registrationSuccess = await _authService.register(
+          username,
+          phoneNumber,
+          email,
+          password,
+        );
 
-        bool registrationSuccess = Random().nextBool();
         if (!mounted) return;
 
         if (registrationSuccess) {
@@ -442,7 +439,7 @@ class _SignupState extends State<Signup> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                "Registration Failed: Username might be taken or server error.",
+                "Registration Failed: Email might be taken .",
               ),
               backgroundColor: Colors.redAccent,
             ),
@@ -452,8 +449,8 @@ class _SignupState extends State<Signup> {
         debugPrint("Error during registration: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("An error occurred: ${e.toString()}"),
+          const  SnackBar(
+              content: Text("An error occurred: Please try again later."),
               backgroundColor: Colors.red,
             ),
           );
@@ -478,7 +475,7 @@ class _SignupState extends State<Signup> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _nameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();

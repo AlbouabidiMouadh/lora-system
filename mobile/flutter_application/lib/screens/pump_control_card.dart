@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/Services/api_service.dart';
+import 'package:flutter_application/Services/api_service.dart';
 
 class PumpControlCard extends StatefulWidget {
   const PumpControlCard({super.key});

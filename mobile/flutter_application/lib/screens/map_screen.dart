@@ -5,13 +5,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 
-class SensorDataPage extends StatefulWidget {
-  const SensorDataPage({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
   @override
-  State<SensorDataPage> createState() => _SensorDataPageState();
+  State<MapScreen> createState() => _MapScreenState();
 }
 
-class _SensorDataPageState extends State<SensorDataPage> {
+class _MapScreenState extends State<MapScreen> {
   late WebSocketChannel channel;
   Map<String, dynamic>? sensorData;
 

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/screens/dashboard_screen.dart';
-import 'package:flutter_application_2/screens/logoscreen.dart';
-import 'package:flutter_application_2/screens/map_screen.dart';
-import 'package:flutter_application_2/screens/screen_signin.dart';
-import 'package:flutter_application_2/screens/screen_signup.dart';
-import 'package:flutter_application_2/screens/screen_splash.dart';
+import 'package:flutter_application/routes/app_routes.dart';
+import 'package:flutter_application/screens/screen_splash.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -48,15 +44,17 @@ class MyApp extends StatelessWidget {
           titleMedium: TextStyle(fontSize: 16, color: Colors.white70),
         ),
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/logo': (context) => const Logoscreen(),
-        'signin': (context) => const Signin(),
-        'signup': (context) => const Signup(),
-        'home': (context) => const HomeSc(),
-        'map': (context) => const SensorDataPage(),
+      home: const SplashScreen(),
+      onGenerateRoute: (settings) {
+        final routes = AppRoutes.getRoutes();
+        final builder = routes[settings.name];
+        if (builder != null) {
+          return MaterialPageRoute(builder: builder, settings: settings);
+        }
+        return null;
       },
     );
   }
 }
+
+

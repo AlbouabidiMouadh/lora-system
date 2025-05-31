@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application/screens/login_screen.dart';
+import 'package:flutter_application/services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -8,6 +10,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final AuthService _authService = AuthService();
   final TextEditingController _emailController = TextEditingController();
 
   @override
@@ -117,7 +120,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _buildBackToSignInLink() {
     return GestureDetector(
       onTap: () {
-        Navigator.pushReplacementNamed(context, '/signin');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       },
       child: const Text(
         "Back to Sign In",
@@ -159,7 +165,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  void _handlePasswordReset() {
+  void _handlePasswordReset() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,13 +174,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
     debugPrint("Password Reset Requested for: $email");
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "If an account exists for this email, a reset link has been sent.",
-        ),
-      ),
-    );
+    try {
+      final response = await _authService.forgotPassword(email);
+      if (response) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "If an account exists for this email, a reset link has been sent.",
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("An error occurs , Please try Again !")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("An error occurs , Please try Again !")),
+      );
+    }
   }
 }

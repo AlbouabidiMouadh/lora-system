@@ -1,4 +1,4 @@
-name: flutter_application_2
+name: flutter_application
 description: "A new Flutter project."
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,6 +34,8 @@ dependencies:
   flutter_localization: ^0.3.2
   shimmer: ^3.0.0
   percent_indicator: ^4.2.3
+  app_links: ^6.4.0
+  uri: ^1.0.0
 
 
 dev_dependencies:

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/Models/sensor_reading.dart';
-import 'package:flutter_application_2/Services/api_service.dart';
+import 'package:flutter_application/Models/sensor_reading.dart';
+import 'package:flutter_application/Services/api_service.dart';
 import 'package:intl/intl.dart';
 
 class TemperatureScreen extends StatefulWidget {

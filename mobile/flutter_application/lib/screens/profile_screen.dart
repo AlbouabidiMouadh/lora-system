@@ -1,65 +1,82 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application/models/user.dart';
+import 'package:flutter_application/screens/edit_profile_screen.dart';
+import 'package:flutter_application/screens/login_screen.dart';
+import 'package:flutter_application/services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  final String userName = "Flutter Dev";
-  final String userEmail = "developer@example.com";
-  final String profileImageUrl = 'assets/avatar.png';
+  Future<User?> _getUserData() async {
+    final authService = AuthService();
+    return await authService.getUserData();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 20.0),
-        child: Column(
-          children: [
-            _buildProfileHeader(),
-            const SizedBox(height: 30),
-            _buildInfoSection(),
-            const SizedBox(height: 40),
-            _buildActionButtons(context),
-            const SizedBox(height: 20),
-          ],
-        ),
+      body: FutureBuilder<User?>(
+        future: _getUserData(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text('No user data found.'));
+          }
+          final user = snapshot.data!;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              vertical: 20.0,
+              horizontal: 20.0,
+            ),
+            child: Column(
+              children: [
+                _buildProfileHeader(user),
+                const SizedBox(height: 30),
+                _buildInfoSection(user),
+                const SizedBox(height: 40),
+                _buildActionButtons(context, user),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(User? user) {
     return Column(
       children: [
         const CircleAvatar(
           radius: 50,
           backgroundColor: Color(0xFFE5FFE5),
-
           child: Icon(Icons.person, size: 60, color: Color(0xFF3FA34D)),
         ),
         const SizedBox(height: 15),
         Text(
-          userName,
+          user?.name ?? '',
           style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Color(0xFF4C5D4D),
           ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          userEmail,
-          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-        ),
       ],
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildInfoSection(User? user) {
     return Column(
       children: [
-        _buildInfoTile(Icons.phone_outlined, 'Phone Number', '+1 234 567 890'),
-        _buildInfoTile(Icons.location_on_outlined, 'Location', 'City, Country'),
-        _buildInfoTile(Icons.work_outline, 'Role', 'App Developer'),
+        _buildInfoTile(
+          Icons.phone_outlined,
+          'Phone Number',
+          user?.phoneNumber ?? '',
+        ),
+        _buildInfoTile(Icons.email, 'Email', user?.email ?? ''),
       ],
     );
   }
@@ -67,7 +84,10 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildInfoTile(IconData icon, String title, String subtitle) {
     return ListTile(
       leading: Icon(icon, color: const Color(0xFF47CF38)),
-      title: Text(title, style: TextStyle(color: Colors.grey[800])),
+      title: Text(
+        title,
+        style: TextStyle(fontSize: 18, color: Colors.grey[800]),
+      ),
       subtitle: Text(
         subtitle,
         style: TextStyle(fontSize: 15, color: Colors.grey[600]),
@@ -75,15 +95,15 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
+  Widget _buildActionButtons(BuildContext context, User? user) {
     return Column(
       children: [
         ElevatedButton.icon(
           onPressed: () {
-            debugPrint("Edit Profile Tapped");
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Edit Profile page not implemented yet."),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditProfileScreen(user: user),
               ),
             );
           },
@@ -108,7 +128,6 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-
         Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -120,10 +139,10 @@ class ProfileScreen extends StatelessWidget {
           ),
           child: ElevatedButton.icon(
             onPressed: () {
-              debugPrint("Logout Tapped");
-              Navigator.pushNamedAndRemoveUntil(
+              AuthService().logout();
+              Navigator.pushAndRemoveUntil(
                 context,
-                '/signin',
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
                 (route) => false,
               );
             },
