@@ -40,14 +40,14 @@ class _MenuScreenState extends State<MenuScreen> {
             ),
           ),
         ),
-        title: Text(
+        title: null /* Text(
           _getAppBarTitle(_selectedIndex),
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
-        ),
-        automaticallyImplyLeading: false,
+        ) */,
+//        automaticallyImplyLeading: false,
       ),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(

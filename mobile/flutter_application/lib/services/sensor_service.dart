@@ -1,29 +1,57 @@
 import 'package:flutter_application/services/api_service.dart';
-import 'package:flutter_application/Models/sensor_reading.dart';
+import 'package:flutter_application/Models/sensor.dart';
 import 'package:flutter/foundation.dart';
 
 class SensorService {
   final ApiService _apiService = ApiService();
 
-  Future<List<SensorReading>> fetchSensorReadings({
-    required DateTime startDate,
-    required DateTime endDate,
-  }) async {
+  Future<List<Sensor>> getAllSensors() async {
     try {
-      final response = await _apiService.get(
-        'api/sensor-data?timestamp__gte=${startDate.toUtc().toIso8601String()}&timestamp__lt=${endDate.toUtc().toIso8601String()}',
-      );
-      if (response is List) {
-        return response
-            .whereType<Map<String, dynamic>>()
-            .map((item) => SensorReading.fromJson(item))
-            .toList();
+      final response = await _apiService.get('/sensors');
+      if (response is Map &&
+          response['success'] == true &&
+          response['data'] is List) {
+        final sensors =
+            (response['data'] as List)
+                .whereType<Map<String, dynamic>>()
+                .map((item) => Sensor.fromJson(item))
+                .toList();
+        return sensors;
       } else {
-        throw Exception('Failed to load sensor data.');
+        return [];
       }
     } catch (e) {
-      debugPrint('[SensorService] Exception fetching sensor readings: $e');
-      throw Exception('Failed to fetch sensor data. Details: $e');
+      debugPrint('[SensorService] Exception fetching sensors: $e');
+      return [];
+    }
+  }
+
+  Future<List<Sensor>> getSensorsByDate({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final response = await _apiService.get('/sensors');
+      if (response is Map &&
+          response['success'] == true &&
+          response['data'] is List) {
+        final sensors =
+            (response['data'] as List)
+                .whereType<Map<String, dynamic>>()
+                .map((item) => Sensor.fromJson(item))
+                .where(
+                  (sensor) =>
+                      sensor.timestamp.isAfter(startDate ?? DateTime.now()) &&
+                      sensor.timestamp.isBefore(endDate ?? DateTime.now()),
+                )
+                .toList();
+        return sensors;
+      } else {
+        return [];
+      }
+    } catch (e) {
+      debugPrint('[SensorService] Exception fetching sensors by date: $e');
+      return [];
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
-import 'package:flutter_application/Models/sensor_reading.dart';
 import 'package:flutter_application/config/config.dart';
+import 'package:flutter_application/models/sensor.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
@@ -15,7 +15,7 @@ class Service {
 
   static const String _tankLevelEndpoint = '/api/tank/latest/';
 
-  Future<List<SensorReading>> fetchSensorReadings({
+  Future<List<Sensor>> fetchSensorReadings({
     required DateTime startDate,
     required DateTime endDate,
   }) async {
@@ -35,10 +35,10 @@ class Service {
 
       if (response.statusCode == 200) {
         List<dynamic> body = json.decode(response.body);
-        List<SensorReading> readings =
+        List<Sensor> readings =
             body
                 .whereType<Map<String, dynamic>>()
-                .map((item) => SensorReading.fromJson(item))
+                .map((item) => Sensor.fromJson(item))
                 .toList();
         debugPrint('[ApiService] Fetched ${readings.length} sensor readings.');
         return readings;
