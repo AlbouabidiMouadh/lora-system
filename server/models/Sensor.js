@@ -18,6 +18,11 @@ const sensorSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true
+    },
+    pump: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Pump',
+      required: true
     }
   },
   { timestamps: true }

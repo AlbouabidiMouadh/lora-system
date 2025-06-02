@@ -1,7 +1,7 @@
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
-const { sendResponse, generateToken } = require('../utils/helpers');
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const { sendResponse, generateToken } = require("../utils/helpers");
 
 /**
  * @function register
@@ -14,16 +14,17 @@ const { sendResponse, generateToken } = require('../utils/helpers');
  */
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phoneNumber } = req.body;
 
     const exists = await User.findOne({ email });
-    if (exists) return sendResponse(res, 400, false, 'Email already registered');
+    if (exists)
+      return sendResponse(res, 400, false, "Email already registered");
 
-    const user = new User({ name, email, password });
+    const user = new User({ name, email, password, phoneNumber });
     await user.save();
 
     const token = generateToken(user._id);
-    sendResponse(res, 201, true, 'Registration successful', { token, user });
+    sendResponse(res, 201, true, "Registration successful", { token, user });
   } catch (err) {
     sendResponse(res, 500, false, err.message);
   }
@@ -43,13 +44,13 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return sendResponse(res, 401, false, 'Invalid credentials');
+    if (!user) return sendResponse(res, 401, false, "Invalid credentials");
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return sendResponse(res, 401, false, 'Invalid credentials');
+    if (!isMatch) return sendResponse(res, 401, false, "Invalid credentials");
 
     const token = generateToken(user._id);
-    sendResponse(res, 200, true, 'Login successful', { token, user });
+    sendResponse(res, 200, true, "Login successful", { token, user });
   } catch (err) {
     sendResponse(res, 500, false, err.message);
   }
@@ -71,7 +72,7 @@ exports.updatePassword = async (req, res) => {
     // Verify current password
     const isMatch = await user.matchPassword(req.body.currentPassword);
     if (!isMatch) {
-      return sendResponse(res, 401, false, 'Current password is incorrect');
+      return sendResponse(res, 401, false, "Current password is incorrect");
     }
 
     // Update password
@@ -80,9 +81,9 @@ exports.updatePassword = async (req, res) => {
 
     // Generate new token
     const token = generateToken(user._id);
-    sendResponse(res, 200, true, 'Password updated successfully', { token });
+    sendResponse(res, 200, true, "Password updated successfully", { token });
   } catch (err) {
-    sendResponse(res, 500, false, 'Error updating password');
+    sendResponse(res, 500, false, "Error updating password");
   }
 };
 
@@ -101,7 +102,7 @@ exports.forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return sendResponse(res, 404, false, 'No user found with this email');
+      return sendResponse(res, 404, false, "No user found with this email");
     }
 
     // Generate reset token
@@ -124,25 +125,25 @@ exports.forgotPassword = async (req, res) => {
     try {
       await sendEmail({
         to: user.email,
-        subject: 'Password Reset Request',
+        subject: "Password Reset Request",
         html: message,
       });
 
-      sendResponse(res, 200, true, 'Reset email sent successfully');
+      sendResponse(res, 200, true, "Reset email sent successfully");
     } catch (err) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save();
-      sendResponse(res, 500, false, 'Failed to send reset email');
+      sendResponse(res, 500, false, "Failed to send reset email");
     }
   } catch (err) {
-    sendResponse(res, 500, false, 'Error processing password reset request');
+    sendResponse(res, 500, false, "Error processing password reset request");
   }
 };
 
 /**
  * @function resetPassword
- * @description Resets the user's password using a valid reset token.
+ * @description Resets the user's password using a valid reset token, verifies current password, and checks new password.
  * @route PUT /api/auth/resetpassword/:resettoken
  * @access Public
  * @param {Object} req - Express request object
@@ -152,9 +153,9 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   // Hash the provided token
   const resetPasswordToken = crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(req.params.resettoken)
-    .digest('hex');
+    .digest("hex");
 
   try {
     const user = await User.findOne({
@@ -163,18 +164,29 @@ exports.resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return sendResponse(res, 400, false, 'Invalid or expired token');
+      return sendResponse(res, 400, false, "Invalid or expired token");
+    }
+
+    // Verify current password
+    const isMatch = await user.matchPassword(req.query.currentPassword);
+    if (!isMatch) {
+      return sendResponse(res, 401, false, "Current password is incorrect");
+    }
+
+    // Check if new password is provided
+    if (!req.query.newPassword) {
+      return sendResponse(res, 400, false, "New password is required");
     }
 
     // Set new password and clear reset fields
-    user.password = req.body.password;
+    user.password = req.query.newPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
 
-    sendResponse(res, 200, true, 'Password reset successfully');
+    sendResponse(res, 200, true, "Password reset successfully");
   } catch (err) {
-    sendResponse(res, 500, false, 'Error resetting password');
+    sendResponse(res, 500, false, "Error resetting password");
   }
 };
 
@@ -191,8 +203,8 @@ exports.logout = async (req, res) => {
   try {
     // Since JWT is stateless, no server-side invalidation is needed
     // Client should discard the token
-    sendResponse(res, 200, true, 'Logout successful');
+    sendResponse(res, 200, true, "Logout successful");
   } catch (err) {
-    sendResponse(res, 500, false, 'Error logging out');
+    sendResponse(res, 500, false, "Error logging out");
   }
 };
