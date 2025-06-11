@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application/models/pump.dart';
 import 'package:flutter_application/models/user.dart';
 import 'package:flutter_application/screens/auth/reset_password_page.dart';
 import 'package:flutter_application/screens/home_screen.dart';
@@ -12,6 +13,10 @@ import 'package:flutter_application/screens/screen_splash.dart';
 import 'package:flutter_application/services/auth_service.dart';
 import 'package:flutter_application/screens/edit_profile_screen.dart';
 import 'package:flutter_application/screens/change_password_screen.dart';
+import 'package:flutter_application/screens/sensor_screen.dart';
+import 'package:flutter_application/screens/pump_control_screen.dart';
+import 'package:flutter_application/screens/notification_screen.dart';
+import 'package:flutter_application/services/fake_notification_service.dart';
 
 class AppRoutes {
   static const String splash = "/";
@@ -28,6 +33,9 @@ class AppRoutes {
   static const String forgotPassword = "/forgot_password";
   static const String editProfile = '/edit_profile';
   static const String changePassword = '/change_password';
+  static const String sensor = '/sensor';
+  static const String pumpControl = '/pump_control';
+  static const String notifications = '/notifications';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -50,11 +58,24 @@ class AppRoutes {
       home: (context) => const HomeScreen(),
       map: (context) => const MapScreen(),
       editProfile: (context) {
-        final user =
-            ModalRoute.of(context)!.settings.arguments as User?;
+        final user = ModalRoute.of(context)!.settings.arguments as User?;
         return EditProfileScreen(user: user);
       },
       changePassword: (context) => const ChangePasswordScreen(),
+      sensor: (context) {
+        final args =
+            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+        return SensorScreen(
+          lat: args?['lat'] as double?,
+          lon: args?['lon'] as double?,
+        );
+      },
+      pumpControl: (context) {
+        final args = ModalRoute.of(context)!.settings.arguments as Pump;
+
+        return PumpControlScreen(pump: args);
+      },
+      notifications: (context) => const NotificationScreen(),
     };
   }
 

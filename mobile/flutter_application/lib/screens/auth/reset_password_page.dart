@@ -44,8 +44,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         if (!mounted) return;
 
         setState(() {
-          _successMessage =
-              'Votre mot de passe a été réinitialisé avec succès.';
+          _successMessage = 'Your password has been reset successfully.';
         });
 
         // Navigate back to login page after a short delay
@@ -71,7 +70,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Réinitialiser le mot de passe')),
+      appBar: AppBar(title: const Text('Reset Password')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -81,7 +80,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Entrez votre nouveau mot de passe',
+                  'Enter your new password',
                   style: TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 24),
@@ -135,18 +134,18 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
-                    labelText: 'Nouveau mot de passe',
-                    hintText: 'Entrez votre nouveau mot de passe',
+                    labelText: 'New Password',
+                    hintText: 'Enter your new password',
                     prefixIcon: Icon(Icons.lock),
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Veuillez entrer un mot de passe';
+                      return 'Please enter a password';
                     }
                     if (value.length < 6) {
-                      return 'Le mot de passe doit contenir au moins 6 caractères';
+                      return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
@@ -156,18 +155,18 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 TextFormField(
                   controller: _confirmPasswordController,
                   decoration: const InputDecoration(
-                    labelText: 'Confirmer le mot de passe',
-                    hintText: 'Confirmez votre nouveau mot de passe',
+                    labelText: 'Confirm Password',
+                    hintText: 'Confirm your new password',
                     prefixIcon: Icon(Icons.lock),
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Veuillez confirmer votre mot de passe';
+                      return 'Please confirm your password';
                     }
                     if (value != _passwordController.text) {
-                      return 'Les mots de passe ne correspondent pas';
+                      return 'Passwords do not match';
                     }
                     return null;
                   },
@@ -189,7 +188,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                               strokeWidth: 2,
                             ),
                           )
-                          : const Text('Réinitialiser le mot de passe'),
+                          : const Text('Reset Password'),
                 ),
               ],
             ),

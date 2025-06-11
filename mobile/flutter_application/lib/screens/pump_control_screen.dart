@@ -1,17 +1,20 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_application/Services/api_service.dart';
+import 'package:flutter_application/models/pump.dart';
+import 'package:flutter_application/models/pump_status.dart';
+import 'package:flutter_application/services/pump_service.dart';
 
-class PumpControlCard extends StatefulWidget {
-  const PumpControlCard({super.key});
+class PumpControlScreen extends StatefulWidget {
+  final Pump pump;
+  const PumpControlScreen({super.key, required this.pump});
 
   @override
-  State<PumpControlCard> createState() => _PumpControlCardState();
+  State<PumpControlScreen> createState() => _PumpControlScreenState();
 }
 
-class _PumpControlCardState extends State<PumpControlCard> {
-  final ApiService _apiService = ApiService();
+class _PumpControlScreenState extends State<PumpControlScreen> {
+  final PumpService _pumpService = PumpService();
   bool? _currentPumpState;
   bool _isProcessing = false;
   String? _errorMessage;
@@ -35,7 +38,7 @@ class _PumpControlCardState extends State<PumpControlCard> {
   @override
   void initState() {
     super.initState();
-    _fetchPumpStatus(showLoading: true);
+    _currentPumpState = widget.pump.status == PumpStatus.on;
     _startPolling();
   }
 
@@ -63,19 +66,15 @@ class _PumpControlCardState extends State<PumpControlCard> {
       });
     }
     try {
-      final statusData = await _apiService.getPumpStatus();
-      if (mounted) {
-        setState(() {
-          final bool? newPumpState = statusData['is_on'] as bool?;
-          _currentPumpState = newPumpState;
-          _errorMessage = null;
-
-          if (_isTimerRunning && newPumpState == false) {
-            debugPrint("Polling detected pump is OFF, cancelling timer.");
-            _cancelCountdownTimer();
-          }
-        });
-      }
+      // No direct service call, just refresh UI from model
+      setState(() {
+        _currentPumpState = widget.pump.status == PumpStatus.on;
+        _errorMessage = null;
+        if (_isTimerRunning && _currentPumpState == false) {
+          debugPrint("Polling detected pump is OFF, cancelling timer.");
+          _cancelCountdownTimer();
+        }
+      });
     } catch (e) {
       debugPrint("Error in _fetchPumpStatus: $e");
       if (mounted) {
@@ -112,9 +111,9 @@ class _PumpControlCardState extends State<PumpControlCard> {
       _errorMessage = null;
     });
 
-    debugPrint("Timer started for ${_selectedDuration.inMinutes} minutes.");
+    debugPrint("Timer started for \\${_selectedDuration.inMinutes} minutes.");
 
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (!mounted) {
         timer.cancel();
         return;
@@ -127,10 +126,20 @@ class _PumpControlCardState extends State<PumpControlCard> {
           _countdownTimer?.cancel();
           _isTimerRunning = false;
           _remainingDuration = Duration.zero;
-
-          Future.microtask(() => _setPumpState(false));
         }
       });
+      if (_remainingDuration.inSeconds == 0) {
+        // Turn off pump automatically when timer finishes
+        await _pumpService.updatePumpStatus(
+          id: widget.pump.id,
+          status: PumpStatus.off,
+        );
+        if (mounted) {
+          setState(() {
+            _currentPumpState = false;
+          });
+        }
+      }
     });
   }
 
@@ -147,18 +156,20 @@ class _PumpControlCardState extends State<PumpControlCard> {
 
   Future<void> _setPumpState(bool newState) async {
     if (_isProcessing) return;
-
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
     });
     try {
-      final success = await _apiService.setPumpState(newState);
+      final success = await _pumpService.updatePumpStatus(
+        id: widget.pump.id,
+        status: newState ? PumpStatus.on : PumpStatus.off,
+      );
       if (success && mounted) {
         setState(() {
+          // Can't update final field, just update UI state
           _currentPumpState = newState;
           _errorMessage = null;
-
           if (!newState) {
             _cancelCountdownTimer();
           }
@@ -202,19 +213,20 @@ class _PumpControlCardState extends State<PumpControlCard> {
         _selectedDuration == Duration.zero) {
       return;
     }
-
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
     });
     try {
-      final success = await _apiService.setPumpState(true);
+      final success = await _pumpService.updatePumpStatus(
+        id: widget.pump.id,
+        status: PumpStatus.on,
+      );
       if (success && mounted) {
         setState(() {
           _currentPumpState = true;
           _errorMessage = null;
         });
-
         _startCountdownTimer();
       } else if (mounted) {
         _errorMessage = "Start failed";
@@ -294,7 +306,7 @@ class _PumpControlCardState extends State<PumpControlCard> {
             );
 
             final double titleTimerSpacing = 20.0 * scaleFactor;
-            final double timerButtonSpacing = 395.0 * scaleFactor;
+            final double timerButtonSpacing = 50.0 * scaleFactor;
             final double buttonStatusSpacing = 16.0 * scaleFactor;
             final double statusErrorSpacing = 8.0 * scaleFactor;
             final double errorTopSpacing = 8.0 * scaleFactor;
@@ -411,6 +423,7 @@ class _PumpControlCardState extends State<PumpControlCard> {
                   SizedBox(height: buttonStatusSpacing),
                   _buildStatusText(context, statusStyle, currentBgColor),
                   SizedBox(height: statusErrorSpacing),
+                  _buildWaterLevelPot(),
                   Container(
                     constraints: const BoxConstraints(minHeight: 20),
                     child:
@@ -561,6 +574,76 @@ class _PumpControlCardState extends State<PumpControlCard> {
           letterSpacing: 0.5,
         ),
         textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _buildWaterLevelPot() {
+    // Example: 60% water level, you can replace with real data
+    double waterLevel = 0.6;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Center(
+        child: SizedBox(
+          width: 100,
+          height: 120,
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              // Rectangle pot outline
+              Container(
+                width: 100,
+                height: 120,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.brown.shade400, width: 4),
+                    left: BorderSide(width: 6, color: Colors.brown.shade400),
+                    right: BorderSide(width: 6, color: Colors.brown.shade400),
+                  ),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
+                  ),
+                  color: Colors.brown.shade50,
+                ),
+              ),
+              // Water fill
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  width: 100,
+                  height: (120 * waterLevel).clamp(0, 100),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.7),
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(8),
+                      top: Radius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              // Water level text
+              Positioned(
+                bottom: 40,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    '${(waterLevel * 100).toInt()}%',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      shadows: [Shadow(blurRadius: 2, color: Colors.black26)],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

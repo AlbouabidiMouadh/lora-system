@@ -1,23 +1,27 @@
 import 'package:flutter/foundation.dart';
 
-class SensorReading {
+class Sensor {
   final double temperature;
   final double humidity;
   final double moisture;
   final double latitude;
   final double longitude;
   final DateTime timestamp;
+  final String? userId;
+  final String? pumpId;
 
-  SensorReading({
+  Sensor({
     required this.temperature,
     required this.humidity,
     required this.moisture,
     required this.latitude,
     required this.longitude,
     required this.timestamp,
+    this.userId,
+    this.pumpId,
   });
 
-  factory SensorReading.fromJson(Map<String, dynamic> json) {
+  factory Sensor.fromJson(Map<String, dynamic> json) {
     try {
       double parseToDouble(dynamic value, String fieldName) {
         if (value == null) {
@@ -52,13 +56,15 @@ class SensorReading {
         );
       }
 
-      return SensorReading(
+      return Sensor(
         temperature: parseToDouble(json['temperature'], 'temperature'),
         humidity: parseToDouble(json['humidity'], 'humidity'),
         moisture: parseToDouble(json['moisture'], 'moisture'),
         latitude: parseToDouble(json['latitude'], 'latitude'),
         longitude: parseToDouble(json['longitude'], 'longitude'),
         timestamp: parseTimestamp(json['timestamp']),
+        userId: json['user'] as String?,
+        pumpId: json['pump'] as String?,
       );
     } catch (e, stacktrace) {
       debugPrint(

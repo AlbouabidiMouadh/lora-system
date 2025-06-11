@@ -23,7 +23,7 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) => User(
     id: json['_id'],
-    phoneNumber: json['phoneNumber'] ?? '',
+    phoneNumber: json['phoneNumber'] ?? '124',
     name: json['name'],
     email: json['email'],
 

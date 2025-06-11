@@ -1,9 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_application/models/pump.dart';
+import 'package:flutter_application/screens/pump_control_screen.dart';
+import 'package:flutter_application/screens/sensor_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
+import 'package:flutter_application/services/fake_pump_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -12,7 +14,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  late WebSocketChannel channel;
+  final FakePumpService _fakeSensorService = FakePumpService();
+  Pump? _myPump;
   Map<String, dynamic>? sensorData;
 
   final MapController _mapController = MapController();
@@ -30,72 +33,24 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _connectWebSocket();
+    _loadFakeSensor();
   }
 
-  void _connectWebSocket() {
-    final wsUrl = Uri.parse('ws://10.0.2.2:8000/ws/sensors/');
-    channel = WebSocketChannel.connect(wsUrl);
-
-    channel.stream.listen(
-      (message) {
-        print('Received: $message');
-        try {
-          final decodedData = jsonDecode(message);
-          if (decodedData is Map<String, dynamic> &&
-              decodedData.containsKey('latitude') &&
-              decodedData.containsKey('longitude') &&
-              decodedData.containsKey('temperature') &&
-              decodedData.containsKey('humidity')) {
-            setState(() {
-              sensorData = decodedData;
-              final lat =
-                  sensorData!['latitude'] is String
-                      ? double.tryParse(sensorData!['latitude'])
-                      : sensorData!['latitude'].toDouble();
-              final lon =
-                  sensorData!['longitude'] is String
-                      ? double.tryParse(sensorData!['longitude'])
-                      : sensorData!['longitude'].toDouble();
-
-              if (lat != null && lon != null) {
-                _currentLocation = LatLng(lat, lon);
-                _updateMarkers();
-                _moveCameraToLocation(_currentLocation!);
-                _popupLayerController.hideAllPopups();
-              } else {
-                print('Error: Could not parse latitude/longitude');
-              }
-            });
-          } else {
-            print('Error: Received data missing required fields.');
-          }
-        } catch (e) {
-          print('Error decoding JSON: $e');
-        }
-      },
-      onError: (error) {
-        print('WebSocket Error: $error');
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('WebSocket Error: $error')));
-        }
-      },
-      onDone: () {
-        print('WebSocket Closed');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('WebSocket connection closed')),
-          );
-        }
-      },
-    );
+  Future<void> _loadFakeSensor() async {
+    final readings = await _fakeSensorService.getPumps();
+    if (readings.isNotEmpty) {
+      setState(() {
+        _myPump = readings.last;
+        _currentLocation = LatLng(_myPump!.latitude, _myPump!.longitude);
+        _updateMarkers();
+        _moveCameraToLocation(_currentLocation!);
+      });
+    }
   }
 
   void _updateMarkers() {
     _markers.clear();
-    if (_currentLocation != null && sensorData != null) {
+    if (_currentLocation != null && _myPump != null) {
       _markers.add(
         Marker(
           key: const ValueKey('sensor_marker'),
@@ -128,13 +83,12 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
-    channel.sink.close();
     _popupLayerController.dispose();
     super.dispose();
   }
 
   Widget _buildPopupWidget(BuildContext context, Marker marker) {
-    if (sensorData == null) {
+    if (_myPump == null) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(12),
@@ -160,39 +114,64 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Humidity", style: TextStyle(color: Colors.white70)),
-                const SizedBox(width: 20),
-                Text(
-                  "${sensorData!['humidity']}%",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+            Text(
+              "Temperature: ${_myPump!.longitude.toStringAsFixed(1)}°C",
+              style: const TextStyle(color: Colors.white),
             ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Temperature",
-                  style: TextStyle(color: Colors.white70),
+            Text(
+              "Humidity: ${_myPump!.latitude.toStringAsFixed(1)}%",
+              style: const TextStyle(color: Colors.white),
+            ),
+            Text(
+              "Moisture: ${_myPump!.latitude.toStringAsFixed(1)}%",
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(
+                  Icons.analytics,
+                  color: Colors.white,
+                  size: 18,
                 ),
-                const SizedBox(width: 20),
-                Text(
-                  "${sensorData!['temperature'].toString().replaceAll('.', ',')}°C",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
                 ),
-              ],
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SensorScreen(
+                        lat: _myPump!.latitude,
+                        lon: _myPump!.longitude,
+                      ),
+                    ),
+                  );
+                },
+                label: const Text('See Sensor Data'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.water, color: Colors.white, size: 18),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PumpControlScreen(pump: _myPump!),
+                    ),
+                  );
+                },
+                label: const Text('Go to Pump Control'),
+              ),
             ),
           ],
         ),

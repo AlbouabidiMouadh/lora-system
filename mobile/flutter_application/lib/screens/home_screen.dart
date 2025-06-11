@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application/screens/notification_screen.dart';
+import 'package:flutter_application/services/weather_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:flutter_application/services/fake_pump_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,43 +17,18 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String city = 'Loading...', temperature = '...', description = 'Loading...';
   String station1Name = 'Station 1', station2Name = 'Station 2';
-  late WebSocketChannel channel;
+
   Map<String, dynamic>? station1Data, station2Data;
+  final FakePumpService _fakeSensorService = FakePumpService();
 
   @override
   void initState() {
     super.initState();
-    _connectWebSocket();
-    determinePositionAndFetchWeather();
+
+    determinePositionAndGenerateFakeSensor();
   }
 
-  void _connectWebSocket() {
-    channel = WebSocketChannel.connect(
-      Uri.parse('ws://10.0.2.2:8000/ws/sensors/'),
-    );
-    channel.stream.listen(
-      (message) {
-        try {
-          final decoded = jsonDecode(message);
-          if (decoded is Map<String, dynamic>) {
-            final stationId = decoded['station_id'] ?? '1';
-            setState(() {
-              if (stationId == '1') {
-                station1Data = decoded;
-              } else if (stationId == '2')
-                station2Data = decoded;
-            });
-          }
-        } catch (e) {
-          print('JSON Error: $e');
-        }
-      },
-      onError: print,
-      onDone: () => print('WebSocket closed'),
-    );
-  }
-
-  Future<void> determinePositionAndFetchWeather() async {
+  Future<void> determinePositionAndGenerateFakeSensor() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
         setState(() => description = 'Location services disabled.');
@@ -70,25 +48,27 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       final pos = await Geolocator.getCurrentPosition();
       fetchWeatherByCoordinates(pos.latitude, pos.longitude);
+
+      await _fakeSensorService.generateFakePump(pos);
     } catch (e) {
       setState(() => description = 'Error: ${e.toString()}');
     }
   }
 
   Future<void> fetchWeatherByCoordinates(double lat, double lon) async {
-    const apiKey = 'f26aa4e09bf1388ac34078cad9d9f337';
-    final url =
-        'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=metric';
-    final res = await http.get(Uri.parse(url));
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
+    final weatherService = WeatherService();
+    try {
+      final weatherData = await weatherService.getCurrentWeatherByCoordinates(
+        lat,
+        lon,
+      );
       setState(() {
-        temperature = '${data['main']['temp'].toStringAsFixed(1)} °C';
-        description = data['weather'][0]['description'];
-        city = data['name'];
+        city = weatherData.cityName;
+        temperature = '${weatherData.temperature.toStringAsFixed(1)}°C';
+        description = weatherData.description;
       });
-    } else {
-      setState(() => description = 'Failed to load weather data');
+    } catch (e) {
+      setState(() => description = 'Failed to load weather data: $e');
     }
   }
 
@@ -126,17 +106,17 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.grey[300],
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: determinePositionAndFetchWeather,
+          onRefresh: determinePositionAndGenerateFakeSensor,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                   const Text(
                       'Welcome back !',
                       style: TextStyle(
                         fontSize: 20,
@@ -144,9 +124,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.grey,
                       ),
                     ),
-                    CircleAvatar(
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.notifications, color: Colors.black),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => const NotificationScreen(),
+                      )),
+                      child:const CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.notifications, color: Colors.black),
+                      ),
                     ),
                   ],
                 ),
@@ -198,7 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    channel.sink.close();
     super.dispose();
   }
 }
