@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const sensorRoutes = require('./routes/sensorRoutes');
 const pumpRoutes = require('./routes/pumpRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 dotenv.config();
 connectDB();
@@ -17,6 +18,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/sensors', sensorRoutes);
 app.use('/api/pumps', pumpRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req, res) => res.send('API running'));
 
