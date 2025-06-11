@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 import 'package:flutter_application/services/fake_pump_service.dart';
+import 'package:collection/collection.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -14,10 +15,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final FakePumpService _fakeSensorService = FakePumpService();
-  Pump? _myPump;
-  Map<String, dynamic>? sensorData;
-
+  final FakePumpService _fakePumpService = FakePumpService();
+  List<Pump> _pumps = [];
   final MapController _mapController = MapController();
   final PopupController _popupLayerController = PopupController();
   LatLng? _currentLocation;
@@ -33,28 +32,33 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFakeSensor();
+    _loadFakePumps();
   }
 
-  Future<void> _loadFakeSensor() async {
-    final readings = await _fakeSensorService.getPumps();
-    if (readings.isNotEmpty) {
-      setState(() {
-        _myPump = readings.last;
-        _currentLocation = LatLng(_myPump!.latitude, _myPump!.longitude);
-        _updateMarkers();
+  Future<void> _loadFakePumps() async {
+    final pumps = await _fakePumpService.getPumps();
+    setState(() {
+      _pumps = pumps;
+      if (_pumps.isNotEmpty) {
+        _currentLocation = LatLng(
+          _pumps.first.latitude,
+          _pumps.first.longitude,
+        );
+      }
+      _updateMarkers();
+      if (_currentLocation != null) {
         _moveCameraToLocation(_currentLocation!);
-      });
-    }
+      }
+    });
   }
 
   void _updateMarkers() {
     _markers.clear();
-    if (_currentLocation != null && _myPump != null) {
+    for (final pump in _pumps) {
       _markers.add(
         Marker(
-          key: const ValueKey('sensor_marker'),
-          point: _currentLocation!,
+          key: ValueKey('pump_marker_${pump.id}'),
+          point: LatLng(pump.latitude, pump.longitude),
           width: 40.0,
           height: 40.0,
           child: const Icon(Icons.location_pin, color: Colors.blue, size: 40.0),
@@ -88,7 +92,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildPopupWidget(BuildContext context, Marker marker) {
-    if (_myPump == null) {
+    final pump = _pumps.firstWhereOrNull(
+      (p) =>
+          marker.point.latitude == p.latitude &&
+          marker.point.longitude == p.longitude,
+    );
+    if (pump == null) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(12),
@@ -96,6 +105,12 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
     }
+    final lastSensor =
+        (pump.sensors.isNotEmpty)
+            ? pump.sensors.reduce(
+              (a, b) => a.timestamp.isAfter(b.timestamp) ? a : b,
+            )
+            : null;
     return Card(
       color: Colors.grey[900]?.withOpacity(0.9),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -105,27 +120,34 @@ class _MapScreenState extends State<MapScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Sensor",
-              style: TextStyle(
+            Text(
+              pump.name,
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
                 color: Colors.white,
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              "Temperature: ${_myPump!.longitude.toStringAsFixed(1)}°C",
-              style: const TextStyle(color: Colors.white),
-            ),
-            Text(
-              "Humidity: ${_myPump!.latitude.toStringAsFixed(1)}%",
-              style: const TextStyle(color: Colors.white),
-            ),
-            Text(
-              "Moisture: ${_myPump!.latitude.toStringAsFixed(1)}%",
-              style: const TextStyle(color: Colors.white),
-            ),
+            if (lastSensor != null) ...[
+              Text(
+                "Temperature: ${lastSensor.temperature.toStringAsFixed(1)}°C",
+                style: const TextStyle(color: Colors.white),
+              ),
+              Text(
+                "Humidity: ${lastSensor.humidity.toStringAsFixed(1)}%",
+                style: const TextStyle(color: Colors.white),
+              ),
+              Text(
+                "Moisture: ${lastSensor.moisture.toStringAsFixed(1)}%",
+                style: const TextStyle(color: Colors.white),
+              ),
+            ] else ...[
+              const Text(
+                "No sensor data",
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -143,10 +165,11 @@ class _MapScreenState extends State<MapScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => SensorScreen(
-                        lat: _myPump!.latitude,
-                        lon: _myPump!.longitude,
-                      ),
+                      builder:
+                          (context) => SensorScreen(
+                            lat: pump.latitude,
+                            lon: pump.longitude,
+                          ),
                     ),
                   );
                 },
@@ -166,7 +189,7 @@ class _MapScreenState extends State<MapScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => PumpControlScreen(pump: _myPump!),
+                      builder: (context) => PumpControlScreen(pump: pump),
                     ),
                   );
                 },
@@ -241,7 +264,7 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       floatingActionButton:
-          sensorData == null
+          _pumps.isEmpty
               ? const FloatingActionButton(
                 onPressed: null,
                 child: CircularProgressIndicator(),
