@@ -15,6 +15,8 @@ import 'package:flutter_application/screens/edit_profile_screen.dart';
 import 'package:flutter_application/screens/change_password_screen.dart';
 import 'package:flutter_application/screens/sensor_screen.dart';
 import 'package:flutter_application/screens/pump_control_screen.dart';
+import 'package:flutter_application/screens/notification_screen.dart';
+import 'package:flutter_application/services/fake_notification_service.dart';
 
 class AppRoutes {
   static const String splash = "/";
@@ -33,6 +35,7 @@ class AppRoutes {
   static const String changePassword = '/change_password';
   static const String sensor = '/sensor';
   static const String pumpControl = '/pump_control';
+  static const String notifications = '/notifications';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -67,12 +70,12 @@ class AppRoutes {
           lon: args?['lon'] as double?,
         );
       },
-      pumpControl: (context)  {
-        final args =
-            ModalRoute.of(context)!.settings.arguments as Pump;
-        
-      return   PumpControlScreen(pump: args);
+      pumpControl: (context) {
+        final args = ModalRoute.of(context)!.settings.arguments as Pump;
+
+        return PumpControlScreen(pump: args);
       },
+      notifications: (context) => const NotificationScreen(),
     };
   }
 

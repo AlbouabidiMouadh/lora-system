@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application/screens/notification_screen.dart';
 import 'package:flutter_application/services/weather_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -112,10 +113,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                   const Text(
                       'Welcome back !',
                       style: TextStyle(
                         fontSize: 20,
@@ -123,9 +124,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.grey,
                       ),
                     ),
-                    CircleAvatar(
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.notifications, color: Colors.black),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => const NotificationScreen(),
+                      )),
+                      child:const CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.notifications, color: Colors.black),
+                      ),
                     ),
                   ],
                 ),

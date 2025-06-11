@@ -1,4 +1,5 @@
 import 'package:flutter_application/models/pump_status.dart';
+import 'package:flutter_application/models/sensor.dart';
 
 class Pump {
   final String id;
@@ -8,6 +9,7 @@ class Pump {
   final double longitude;
   final String? description;
   final String userId;
+   List<Sensor> sensors =  [];
 
   Pump({
     required this.id,
@@ -17,6 +19,7 @@ class Pump {
     required this.longitude,
     this.description,
     required this.userId,
+    this.sensors = const [],
   });
 
   factory Pump.fromJson(Map<String, dynamic> json) {
@@ -28,6 +31,10 @@ class Pump {
       longitude: (json['longitude'] as num).toDouble(),
       description: json['description'] ,
       userId: json['user_id'] ,
+      sensors: (json['sensors'] as List<dynamic>?)
+              ?.map((sensorJson) => Sensor.fromJson(sensorJson))
+              .toList() ??
+          [],
     );
   }
 

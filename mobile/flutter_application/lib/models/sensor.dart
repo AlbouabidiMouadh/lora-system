@@ -7,6 +7,8 @@ class Sensor {
   final double latitude;
   final double longitude;
   final DateTime timestamp;
+  final String? userId;
+  final String? pumpId;
 
   Sensor({
     required this.temperature,
@@ -15,6 +17,8 @@ class Sensor {
     required this.latitude,
     required this.longitude,
     required this.timestamp,
+    this.userId,
+    this.pumpId,
   });
 
   factory Sensor.fromJson(Map<String, dynamic> json) {
@@ -59,6 +63,8 @@ class Sensor {
         latitude: parseToDouble(json['latitude'], 'latitude'),
         longitude: parseToDouble(json['longitude'], 'longitude'),
         timestamp: parseTimestamp(json['timestamp']),
+        userId: json['user'] as String?,
+        pumpId: json['pump'] as String?,
       );
     } catch (e, stacktrace) {
       debugPrint(

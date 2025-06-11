@@ -2,9 +2,22 @@ import 'package:flutter_application/models/pump_status.dart';
 import 'package:flutter_application/services/api_service.dart';
 import 'package:flutter/foundation.dart';
 
-class PumpService {
+abstract class AbstractPumpService {
+  Future<Map<String, dynamic>> getAllPumps();
+  Future<Map<String, dynamic>> getPumpsByDate({
+    required DateTime startDate,
+    required DateTime endDate,
+  });
+  Future<bool> updatePumpStatus({
+    required String id,
+    required PumpStatus status,
+  });
+}
+
+class PumpService implements AbstractPumpService {
   final ApiService _apiService = ApiService();
 
+  @override
   Future<Map<String, dynamic>> getAllPumps() async {
     try {
       final response = await _apiService.get('api/pumps/');
@@ -21,6 +34,7 @@ class PumpService {
     }
   }
 
+  @override
   Future<Map<String, dynamic>> getPumpsByDate({
     required DateTime startDate,
     required DateTime endDate,
@@ -50,12 +64,16 @@ class PumpService {
     }
   }
 
+  @override
   Future<bool> updatePumpStatus({
     required String id,
     required PumpStatus status,
   }) async {
     try {
-      final response = await _apiService.put('pumps/$id/status',status.toJson());
+      final response = await _apiService.put(
+        'pumps/$id/status',
+        status.toJson(),
+      );
       if (response is Map && response['success'] == true) {
         return true;
       } else {

@@ -1,10 +1,19 @@
 import 'package:flutter_application/services/api_service.dart';
-import 'package:flutter_application/Models/sensor.dart';
+import 'package:flutter_application/models/sensor.dart';
 import 'package:flutter/foundation.dart';
 
-class SensorService {
+abstract class AbstractSensorService {
+  Future<List<Sensor>> getAllSensors();
+  Future<List<Sensor>> getSensorsByDate({
+    DateTime? startDate,
+    DateTime? endDate,
+  });
+}
+
+class SensorService implements AbstractSensorService {
   final ApiService _apiService = ApiService();
 
+  @override
   Future<List<Sensor>> getAllSensors() async {
     try {
       final response = await _apiService.get('/sensors');
@@ -26,6 +35,7 @@ class SensorService {
     }
   }
 
+  @override
   Future<List<Sensor>> getSensorsByDate({
     DateTime? startDate,
     DateTime? endDate,
