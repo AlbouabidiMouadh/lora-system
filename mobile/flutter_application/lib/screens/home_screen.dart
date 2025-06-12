@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_application/services/fake_pump_service.dart';
+import 'package:flutter_application/services/pump_service.dart';
+import 'package:flutter_application/models/pump.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,16 +18,22 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String city = 'Loading...', temperature = '...', description = 'Loading...';
-  String station1Name = 'Station 1', station2Name = 'Station 2';
-
-  Map<String, dynamic>? station1Data, station2Data;
-  final FakePumpService _fakeSensorService = FakePumpService();
+  final AbstractPumpService _pumpService = FakePumpService();
+  List<Pump> _pumps = [];
 
   @override
   void initState() {
     super.initState();
 
     determinePositionAndGenerateFakeSensor();
+    _loadPumps();
+  }
+
+  Future<void> _loadPumps() async {
+    final pumps = await _pumpService.getAllPumps();
+    setState(() {
+      _pumps = pumps;
+    });
   }
 
   Future<void> determinePositionAndGenerateFakeSensor() async {
@@ -49,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final pos = await Geolocator.getCurrentPosition();
       fetchWeatherByCoordinates(pos.latitude, pos.longitude);
 
-      await _fakeSensorService.generateFakePump(pos);
+      // await _fakeSensorService.generateFakePump(pos);
     } catch (e) {
       setState(() => description = 'Error: ${e.toString()}');
     }
@@ -113,10 +121,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                   const Text(
+                    const Text(
                       'Welcome back !',
                       style: TextStyle(
                         fontSize: 20,
@@ -125,10 +133,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => const NotificationScreen(),
-                      )),
-                      child:const CircleAvatar(
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationScreen(),
+                            ),
+                          ),
+                      child: const CircleAvatar(
                         backgroundColor: Colors.white,
                         child: Icon(Icons.notifications, color: Colors.black),
                       ),
@@ -142,37 +154,36 @@ class _HomeScreenState extends State<HomeScreen> {
                   description: description,
                 ),
                 const SizedBox(height: 16),
-                StationCard(
-                  stationName: station1Name,
-                  temperature:
-                      station1Data?['temperature']?.toStringAsFixed(1) ?? '...',
-                  humidity: station1Data?['humidity']?.toString() ?? '...',
-                  moisture: station1Data?['moisture']?.toString() ?? '...',
-                  lastConnected:
-                      station1Data?['timestamp']?.toString() ?? '...',
-                  onRename: (name) => setState(() => station1Name = name),
-                  onTapRename:
-                      () => renameStation(
-                        (name) => setState(() => station1Name = name),
-                        station1Name,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                StationCard(
-                  stationName: station2Name,
-                  temperature:
-                      station2Data?['temperature']?.toStringAsFixed(1) ?? '...',
-                  humidity: station2Data?['humidity']?.toString() ?? '...',
-                  moisture: station2Data?['moisture']?.toString() ?? '...',
-                  lastConnected:
-                      station2Data?['timestamp']?.toString() ?? '...',
-                  onRename: (name) => setState(() => station2Name = name),
-                  onTapRename:
-                      () => renameStation(
-                        (name) => setState(() => station2Name = name),
-                        station2Name,
-                      ),
-                ),
+                ..._pumps.map((pump) {
+                  final lastSensor =
+                      (pump.sensors.isNotEmpty)
+                          ? pump.sensors.reduce(
+                            (a, b) => a.timestamp.isAfter(b.timestamp) ? a : b,
+                          )
+                          : null;
+                  return StationCard(
+                    stationName: pump.name,
+                    temperature:
+                        lastSensor != null
+                            ? lastSensor.temperature.toStringAsFixed(1)
+                            : '...',
+                    humidity:
+                        lastSensor != null
+                            ? lastSensor.humidity.toStringAsFixed(1)
+                            : '...',
+                    moisture:
+                        lastSensor != null
+                            ? lastSensor.moisture.toStringAsFixed(1)
+                            : '...',
+                    lastConnected:
+                        lastSensor != null
+                            ? lastSensor.timestamp.toString()
+                            : 'No data',
+                    onRename: (_) {}, // No-op, name is final
+                    onTapRename:
+                        () => renameStation((_) {}, pump.name), // No-op
+                  );
+                }).toList(),
               ],
             ),
           ),
