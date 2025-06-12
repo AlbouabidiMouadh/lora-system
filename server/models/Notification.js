@@ -6,6 +6,11 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  title: {
+    type: String,
+    required: true,
+    trim: true
+  },
   message: {
     type: String,
     required: true,
@@ -14,6 +19,11 @@ const notificationSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: ['info', 'alert', 'reminder', 'promotion'],
+    default: 'info'
+  },
+  reason: {
+    type: String,
+    enum: ['temp', 'water', 'pump'],
     default: 'info'
   },
   isRead: {

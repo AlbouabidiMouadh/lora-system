@@ -13,7 +13,24 @@ const { sendResponse } = require('../utils/helpers');
  */
 exports.createNotification = async (req, res) => {
   try {
-    const { recipient, message, type, pumpId } = req.body;
+    const { recipient, title, message, type, reason, pumpId } = req.body;
+
+    // Validate required fields
+    if (!title || !message) {
+      return sendResponse(res, 400, false, 'Title and message are required');
+    }
+
+    // Validate type
+    const validTypes = ['info', 'alert', 'reminder', 'promotion'];
+    if (type && !validTypes.includes(type)) {
+      return sendResponse(res, 400, false, 'Invalid notification type');
+    }
+
+    // Validate reason
+    const validReasons = ['temp', 'water', 'pump'];
+    if (reason && !validReasons.includes(reason)) {
+      return sendResponse(res, 400, false, 'Invalid notification reason');
+    }
 
     // Validate recipient and pump ownership
     const pump = pumpId ? await Pump.findOne({ _id: pumpId, user: req.user._id }) : null;
@@ -23,8 +40,10 @@ exports.createNotification = async (req, res) => {
 
     const notification = new Notification({
       recipient: recipient || req.user._id,
+      title,
       message,
       type: type || 'info',
+      reason: reason || 'info',
     });
     await notification.save();
     sendResponse(res, 201, true, 'Notification created successfully', notification);
@@ -122,4 +141,3 @@ exports.markAllNotificationsAsRead = async (req, res) => {
     sendResponse(res, 400, false, err.message);
   }
 };
-
