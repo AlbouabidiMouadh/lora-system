@@ -24,7 +24,6 @@ const notificationSchema = new mongoose.Schema({
   reason: {
     type: String,
     enum: ['temp', 'water', 'pump'],
-    default: 'info'
   },
   isRead: {
     type: Boolean,
