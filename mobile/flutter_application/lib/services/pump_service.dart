@@ -18,7 +18,7 @@ class PumpService implements AbstractPumpService {
   @override
   Future<List<Pump>> getAllPumps() async {
     try {
-      final response = await _apiService.get('api/pumps/');
+      final response = await _apiService.get('pumps/');
       if (response is Map &&
           response['success'] == true &&
           response['data'] is List) {

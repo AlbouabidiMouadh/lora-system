@@ -18,7 +18,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String city = 'Loading...', temperature = '...', description = 'Loading...';
-  final AbstractPumpService _pumpService = FakePumpService();
+  final AbstractPumpService _pumpService = PumpService();
   List<Pump> _pumps = [];
 
   @override

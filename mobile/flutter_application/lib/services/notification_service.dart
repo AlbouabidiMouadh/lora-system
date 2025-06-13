@@ -13,7 +13,7 @@ class NotificationService implements AbstractNotificationService {
   @override
   Future<List<NotificationModel>> getNotifications() async {
     try {
-      final response = await _apiService.get('/notifications');
+      final response = await _apiService.get('notifications');
       if (response is Map &&
           response['success'] == true &&
           response['data'] is List) {
@@ -35,7 +35,7 @@ class NotificationService implements AbstractNotificationService {
   @override
   Future<void> markAllAsSeen() async {
     try {
-      await _apiService.put('/notifications/mark-all-seen', {});
+      await _apiService.patch('notifications/read-all', {});
     } catch (e) {
       debugPrint(
         '[NotificationService] Exception marking notifications as seen: $e',
