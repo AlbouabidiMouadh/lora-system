@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application/models/notification_model.dart';
-import 'package:flutter_application/services/fake_notification_service.dart';
+import 'package:flutter_application/models/reason.dart';
+import 'package:flutter_application/models/type.dart';
 import 'package:flutter_application/services/notification_service.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -11,7 +12,7 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final AbstractNotificationService notificationService = FakeNotificationService();
+  final AbstractNotificationService notificationService = NotificationService();
 
   late Future<List<NotificationModel>> _notificationsFuture;
 
@@ -43,24 +44,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
             itemBuilder: (context, index) {
               final notif = notifications[index];
               return Card(
-                color: notif.seen ? Colors.grey.shade100 : Colors.blue.shade50,
-                elevation: notif.seen ? 1 : 3,
+                color:
+                    notif.isRead ? Colors.grey.shade100 : Colors.blue.shade50,
+                elevation: notif.isRead ? 1 : 3,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ListTile(
                   leading: Icon(
-                    notif.title.toLowerCase().contains('temp')
-                        ? Icons.thermostat
-                        : notif.title.toLowerCase().contains('water')
-                        ? Icons.water_drop
-                        : Icons.warning,
-                    color:
-                        notif.title.toLowerCase().contains('temp')
-                            ? Colors.red
-                            : notif.title.toLowerCase().contains('water')
-                            ? Colors.blue
-                            : Colors.orange,
+                    _getNotificationIcon(notif.type, notif.reason),
+                    color: _getNotificationColor(notif.type, notif.reason),
                   ),
                   title: Text(
                     notif.title,
@@ -81,7 +74,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ],
                   ),
                   trailing:
-                      notif.seen
+                      notif.isRead
                           ? const Icon(
                             Icons.check,
                             color: Colors.green,
@@ -107,6 +100,53 @@ class _NotificationScreenState extends State<NotificationScreen> {
       return 'Today, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else {
       return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    }
+  }
+
+  IconData _getNotificationIcon(NotifType type, Reason reason) {
+    switch (type) {
+      case NotifType.alert:
+        switch (reason) {
+          case Reason.temp:
+            return Icons.thermostat;
+          case Reason.water:
+            return Icons.water_drop;
+          case Reason.pump:
+            return Icons.warning;
+        }
+      case NotifType.reminder:
+        return Icons.notifications_active;
+      case NotifType.promotion:
+        return Icons.local_offer;
+      case NotifType.info:
+        switch (reason) {
+          case Reason.temp:
+            return Icons.thermostat;
+          case Reason.water:
+            return Icons.water_drop;
+          case Reason.pump:
+            return Icons.info_outline;
+        }
+    }
+  }
+
+  Color _getNotificationColor(NotifType type, Reason reason) {
+    switch (type) {
+      case NotifType.alert:
+        switch (reason) {
+          case Reason.temp:
+            return Colors.red;
+          case Reason.water:
+            return Colors.blue;
+          case Reason.pump:
+            return Colors.orange;
+        }
+      case NotifType.reminder:
+        return Colors.purple;
+      case NotifType.promotion:
+        return Colors.green;
+      case NotifType.info:
+        return Colors.grey;
     }
   }
 }

@@ -175,6 +175,43 @@ class ApiService {
     }
   }
 
+  // PATCH method with authentication token
+  Future<dynamic> patch(String endpoint, dynamic data) async {
+    try {
+      final token = await _authService.getToken();
+      final fullUrl = '$baseUrl/$endpoint';
+      print('PATCH request to: $fullUrl');
+      print('Data: $data');
+
+      final response = await http.patch(
+        Uri.parse(fullUrl),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      );
+
+      print('Status code: ${response.statusCode}');
+      print('Raw response: ${response.body}');
+      final decodedResponse = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return decodedResponse;
+      } else if (response.statusCode == 401) {
+        throw ApiException('Session expired. Please log in again.');
+      } else {
+        throw ApiException(decodedResponse['message'] ?? 'Server error.');
+      }
+    } catch (e) {
+      print('Network error: $e');
+      if (e is ApiException) {
+        rethrow;
+      } else {
+        throw Exception('Network error: $e');
+      }
+    }
+  }
+
   // DELETE method with authentication token
   Future<dynamic> delete(String endpoint) async {
     try {

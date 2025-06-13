@@ -14,7 +14,7 @@ class SensorScreen extends StatefulWidget {
 }
 
 class _SensorScreenState extends State<SensorScreen> {
-  final AbstractSensorService _fakeSensorService = FakeSensorService();
+  final AbstractSensorService _fakeSensorService = SensorService();
   List<Sensor> _readings = [];
   DateTime _selectedDate = DateTime.now();
   bool _loading = true;

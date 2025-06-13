@@ -1,22 +1,33 @@
+import 'package:flutter_application/models/reason.dart';
+import 'package:flutter_application/models/type.dart';
+
 class NotificationModel {
   final String title;
   final String message;
   final DateTime createdAt;
-  bool seen;
+  NotifType type;
+  Reason reason;
+  // Default type, can be changed if needed
+  bool isRead;
 
   NotificationModel({
     required this.title,
     required this.message,
     required this.createdAt,
-    this.seen = false,
+    this.isRead = false,
+    this.type = NotifType.info,
+    this.reason = Reason.water,
+    // Default type is info
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
       title: json['title'] ?? '',
       message: json['message'] ?? '',
-      createdAt: DateTime.parse(json['created_at']),
-      seen: json['seen'] ?? false,
+      createdAt: DateTime.parse(json['createdAt']),
+      isRead: json['isRead'] ?? false,
+      type: TypeExtension.fromString(json["type"]),
+      reason: ReasonExtension.fromString(json["reason"]),
     );
   }
 
@@ -24,6 +35,8 @@ class NotificationModel {
     'title': title,
     'message': message,
     'created_at': createdAt.toIso8601String(),
-    'seen': seen,
+    "type": type.name,
+    "reason": reason.name,
+    'isRead': isRead,
   };
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application/models/pump.dart';
 import 'package:flutter_application/screens/pump_control_screen.dart';
 import 'package:flutter_application/screens/sensor_screen.dart';
+import 'package:flutter_application/services/pump_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
@@ -15,7 +16,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final FakePumpService _fakePumpService = FakePumpService();
+  final AbstractPumpService _fakePumpService = PumpService();
   List<Pump> _pumps = [];
   final MapController _mapController = MapController();
   final PopupController _popupLayerController = PopupController();
@@ -36,7 +37,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _loadFakePumps() async {
-    final pumps = await _fakePumpService.getPumps();
+    final pumps = await _fakePumpService.getAllPumps();
     setState(() {
       _pumps = pumps;
       if (_pumps.isNotEmpty) {
