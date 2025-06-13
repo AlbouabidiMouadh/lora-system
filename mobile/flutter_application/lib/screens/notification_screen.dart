@@ -11,7 +11,7 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final AbstractNotificationService notificationService = FakeNotificationService();
+  final AbstractNotificationService notificationService = NotificationService();
 
   late Future<List<NotificationModel>> _notificationsFuture;
 
@@ -43,8 +43,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
             itemBuilder: (context, index) {
               final notif = notifications[index];
               return Card(
-                color: notif.seen ? Colors.grey.shade100 : Colors.blue.shade50,
-                elevation: notif.seen ? 1 : 3,
+                color: notif.isRead ? Colors.grey.shade100 : Colors.blue.shade50,
+                elevation: notif.isRead ? 1 : 3,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -81,7 +81,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ],
                   ),
                   trailing:
-                      notif.seen
+                      notif.isRead
                           ? const Icon(
                             Icons.check,
                             color: Colors.green,

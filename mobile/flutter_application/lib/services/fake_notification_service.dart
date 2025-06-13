@@ -7,19 +7,19 @@ class FakeNotificationService implements AbstractNotificationService {
       title: 'High Temperature',
       message: 'Temperature exceeded safe level!',
       createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
-      seen: false,
+      isRead: false,
     ),
     NotificationModel(
       title: 'Low Water Level',
       message: 'Water level is below minimum threshold.',
       createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-      seen: false,
+      isRead: false,
     ),
     NotificationModel(
       title: 'Pump Problem',
       message: 'Pump stopped unexpectedly.',
       createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      seen: false,
+      isRead: false,
     ),
   ];
 
@@ -32,7 +32,7 @@ class FakeNotificationService implements AbstractNotificationService {
   @override
   Future<void> markAllAsSeen() async {
     for (var notif in _mockNotifications) {
-      notif.seen = true;
+      notif.isRead = true;
     }
   }
 }
