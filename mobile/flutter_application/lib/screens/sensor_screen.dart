@@ -122,12 +122,12 @@ class _SensorScreenState extends State<SensorScreen> {
                           ),
                           child: ListTile(
                             title: Text(
-                              'Temp: ${r.temperature.toStringAsFixed(1)}°C, Humidity: ${r.humidity.toStringAsFixed(1)}%, Moisture: ${r.moisture.toStringAsFixed(1)}%',
+                              'Temp: ${r.temperature.toStringAsFixed(1)}°C, Humidity: ${r.humidity.toStringAsFixed(1)}%, Moisture: ${r.waterCapacity.toStringAsFixed(1)}%',
                             ),
                             subtitle: Text(
                               DateFormat(
                                 'yyyy-MM-dd HH:mm:ss',
-                              ).format(r.timestamp),
+                              ).format(r.timestamp ?? DateTime.now()),
                             ),
                           ),
                         );

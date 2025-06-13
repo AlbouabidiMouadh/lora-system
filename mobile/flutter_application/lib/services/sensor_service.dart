@@ -51,8 +51,8 @@ class SensorService implements AbstractSensorService {
                 .map((item) => Sensor.fromJson(item))
                 .where(
                   (sensor) =>
-                      sensor.timestamp.isAfter(startDate ?? DateTime.now()) &&
-                      sensor.timestamp.isBefore(endDate ?? DateTime.now()),
+                    (  sensor.timestamp?.isAfter(startDate ?? DateTime.now()) ?? false) &&
+   (                   sensor.timestamp?.isBefore(endDate ?? DateTime.now()) ?? false),
                 )
                 .toList();
         return sensors;

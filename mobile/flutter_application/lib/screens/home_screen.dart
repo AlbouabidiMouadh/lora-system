@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   final lastSensor =
                       (pump.sensors.isNotEmpty)
                           ? pump.sensors.reduce(
-                            (a, b) => a.timestamp.isAfter(b.timestamp) ? a : b,
+                            (a, b) => a.timestamp?.isAfter(b.timestamp ?? DateTime.now()) ?? false ? a : b,
                           )
                           : null;
                   return StationCard(
@@ -173,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             : '...',
                     moisture:
                         lastSensor != null
-                            ? lastSensor.moisture.toStringAsFixed(1)
+                            ? lastSensor.waterCapacity.toStringAsFixed(1)
                             : '...',
                     lastConnected:
                         lastSensor != null

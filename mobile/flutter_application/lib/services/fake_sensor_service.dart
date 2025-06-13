@@ -7,7 +7,7 @@ class FakeSensorService implements AbstractSensorService {
     Sensor(
       temperature: 23.5,
       humidity: 55.0,
-      moisture: 30.0,
+      waterCapacity: 30.0,
       latitude: 37.4219983,
       longitude: -122.084,
       timestamp: DateTime.now().subtract(const Duration(hours: 1)),
@@ -17,7 +17,7 @@ class FakeSensorService implements AbstractSensorService {
     Sensor(
       temperature: 24.1,
       humidity: 56.0,
-      moisture: 32.0,
+      waterCapacity: 32.0,
       latitude: 37.422,
       longitude: -122.0841,
       timestamp: DateTime.now().subtract(const Duration(hours: 2)),
@@ -27,7 +27,7 @@ class FakeSensorService implements AbstractSensorService {
     Sensor(
       temperature: 22.8,
       humidity: 60.0,
-      moisture: 28.0,
+      waterCapacity: 28.0,
       latitude: 37.4221,
       longitude: -122.0842,
       timestamp: DateTime.now().subtract(const Duration(hours: 3)),
@@ -54,7 +54,7 @@ class FakeSensorService implements AbstractSensorService {
     return _mockSensors
         .where(
           (sensor) =>
-              sensor.timestamp.isAfter(start) && sensor.timestamp.isBefore(end),
+              sensor.timestamp!.isAfter(start) && sensor.timestamp!.isBefore(end)  ,
         )
         .toList();
   }

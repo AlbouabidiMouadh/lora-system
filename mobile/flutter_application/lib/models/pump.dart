@@ -30,7 +30,7 @@ class Pump {
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
       description: json['description'] ,
-      userId: json['user_id'] ,
+      userId: json['user'] ,
       sensors: (json['sensors'] as List<dynamic>?)
               ?.map((sensorJson) => Sensor.fromJson(sensorJson))
               .toList() ??
