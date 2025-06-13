@@ -5,9 +5,8 @@ import 'package:flutter_application/services/sensor_service.dart';
 import 'package:intl/intl.dart';
 
 class SensorScreen extends StatefulWidget {
-  final double? lat;
-  final double? lon;
-  const SensorScreen({Key? key, this.lat, this.lon}) : super(key: key);
+  final String? pumpId;
+  const SensorScreen({Key? key, this.pumpId}) : super(key: key);
 
   @override
   State<SensorScreen> createState() => _SensorScreenState();
@@ -50,8 +49,8 @@ class _SensorScreenState extends State<SensorScreen> {
     setState(() {
       _readings =
           readings.where((r) {
-            if (widget.lat != null && widget.lon != null) {
-              return (r.latitude == widget.lat && r.longitude == widget.lon);
+            if (widget.pumpId != null) {
+              return (r.pumpId ?? '') == widget.pumpId;
             }
             return true;
           }).toList();
@@ -120,14 +119,109 @@ class _SensorScreenState extends State<SensorScreen> {
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          child: ListTile(
-                            title: Text(
-                              'Temp: ${r.temperature.toStringAsFixed(1)}°C, Humidity: ${r.humidity.toStringAsFixed(1)}%, Moisture: ${r.waterCapacity.toStringAsFixed(1)}%',
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 18,
                             ),
-                            subtitle: Text(
-                              DateFormat(
-                                'yyyy-MM-dd HH:mm:ss',
-                              ).format(r.timestamp ?? DateTime.now()),
+                            child: Row(
+                              children: [
+                                // Icon or colored circle for temperature
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.blue.shade50,
+                                  ),
+                                  child: const Icon(
+                                    Icons.sensors,
+                                    color: Colors.blue,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                // Sensor values
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.thermostat,
+                                            size: 18,
+                                            color: Colors.redAccent,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${r.temperature.toStringAsFixed(1)}°C',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          const Icon(
+                                            Icons.water_drop,
+                                            size: 18,
+                                            color: Colors.blueAccent,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${r.humidity.toStringAsFixed(1)}%',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          const Icon(
+                                            Icons.grass,
+                                            size: 18,
+                                            color: Colors.green,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${r.waterCapacity.toStringAsFixed(1)}%',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.access_time,
+                                            size: 16,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            DateFormat(
+                                              'yyyy-MM-dd HH:mm:ss',
+                                            ).format(
+                                              r.timestamp ?? DateTime.now(),
+                                            ),
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );

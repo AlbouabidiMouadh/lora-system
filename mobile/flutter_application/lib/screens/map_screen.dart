@@ -168,8 +168,8 @@ class _MapScreenState extends State<MapScreen> {
                     MaterialPageRoute(
                       builder:
                           (context) => SensorScreen(
-                            lat: pump.latitude,
-                            lon: pump.longitude,
+                            pumpId: pump.id,
+                        
                           ),
                     ),
                   );
