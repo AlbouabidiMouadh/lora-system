@@ -5,9 +5,9 @@ const { protect } = require('../middlewares/auth');
 
 router.post('/', protect, sensorController.createSensor);
 router.get('/', protect, sensorController.getSensors);
+router.get('/user', protect, sensorController.getAllSensorsByUserId);
 router.get('/:id', protect, sensorController.getSensorById);
 router.put('/:id', protect, sensorController.updateSensor);
 router.delete('/:id', protect, sensorController.deleteSensor);
-router.get('/user', protect, sensorController.getAllSensorsByUserId);
 
 module.exports = router;
