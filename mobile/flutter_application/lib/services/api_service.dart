@@ -51,10 +51,10 @@ class ApiService {
   Future<dynamic> get(String endpoint) async {
     try {
       // Test connection before each request
-      final isConnected = await testConnection();
+    /*   final isConnected = await testConnection();
       if (!isConnected) {
         throw ApiException('No connection to server.');
-      }
+      } */
 
       final token = await _authService.getToken();
       final fullUrl = '$baseUrl/$endpoint';
@@ -88,7 +88,7 @@ class ApiService {
       } else {
         throw Exception('Server error: ${response.statusCode}');
       }
-    } on http.ClientException catch (e) {
+    } on http.ClientException  catch (e) {
       print('Client error: $e');
       throw ApiException('Cannot connect to server. Please try again.');
     } catch (e) {

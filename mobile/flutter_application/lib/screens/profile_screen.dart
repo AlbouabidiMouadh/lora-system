@@ -3,46 +3,89 @@ import 'package:flutter_application/models/user.dart';
 import 'package:flutter_application/screens/edit_profile_screen.dart';
 import 'package:flutter_application/screens/login_screen.dart';
 import 'package:flutter_application/services/auth_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late Future<User?> _userFuture;
+  bool _isVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _userFuture = _getUserData();
+  }
 
   Future<User?> _getUserData() async {
     final authService = AuthService();
     return await authService.getUserData();
   }
 
+  Future<void> _navigateToEditProfile(User user) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => EditProfileScreen(user: user)),
+    );
+    if (result == true) {
+      setState(() {
+        _userFuture = _getUserData();
+      });
+    }
+  }
+
+  void _handleVisibilityChanged(VisibilityInfo info) {
+    final visible = info.visibleFraction > 0.5;
+    if (visible && !_isVisible) {
+      _isVisible = true;
+      setState(() {
+        _userFuture = _getUserData();
+      });
+    } else if (!visible && _isVisible) {
+      _isVisible = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: FutureBuilder<User?>(
-        future: _getUserData(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(child: Text('No user data found.'));
-          }
-          final user = snapshot.data!;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              vertical: 20.0,
-              horizontal: 20.0,
-            ),
-            child: Column(
-              children: [
-                _buildProfileHeader(user),
-                const SizedBox(height: 30),
-                _buildInfoSection(user),
-                const SizedBox(height: 40),
-                _buildActionButtons(context, user),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        },
+    return VisibilityDetector(
+      key: const Key('profile-screen-visibility'),
+      onVisibilityChanged: _handleVisibilityChanged,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: FutureBuilder<User?>(
+          future: _userFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data == null) {
+              return const Center(child: Text('No user data found.'));
+            }
+            final user = snapshot.data!;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                vertical: 20.0,
+                horizontal: 20.0,
+              ),
+              child: Column(
+                children: [
+                  _buildProfileHeader(user),
+                  const SizedBox(height: 30),
+                  _buildInfoSection(user),
+                  const SizedBox(height: 40),
+                  _buildActionButtons(context, user),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -100,12 +143,9 @@ class ProfileScreen extends StatelessWidget {
       children: [
         ElevatedButton.icon(
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EditProfileScreen(user: user),
-              ),
-            );
+            if (user != null) {
+              _navigateToEditProfile(user);
+            }
           },
           icon: const Icon(
             Icons.edit_outlined,
@@ -140,10 +180,8 @@ class ProfileScreen extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: () {
               AuthService().logout();
-              Navigator.pushAndRemoveUntil(
-                context,
+              Navigator.of(context, rootNavigator: true).pushReplacement(
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
               );
             },
             icon: const Icon(Icons.logout, size: 20, color: Colors.white),

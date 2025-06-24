@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_application/models/sensor.dart';
-import 'package:flutter_application/services/fake_sensor_service.dart';
 import 'package:flutter_application/services/sensor_service.dart';
 import 'package:intl/intl.dart';
 
@@ -13,7 +13,7 @@ class SensorScreen extends StatefulWidget {
 }
 
 class _SensorScreenState extends State<SensorScreen> {
-  final AbstractSensorService _fakeSensorService = SensorService();
+  final AbstractSensorService _sensorService = SensorService();
   List<Sensor> _readings = [];
   DateTime _selectedDate = DateTime.now();
   bool _loading = true;
@@ -22,6 +22,11 @@ class _SensorScreenState extends State<SensorScreen> {
   void initState() {
     super.initState();
     _loadReadings();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _loadReadings() async {
@@ -42,7 +47,7 @@ class _SensorScreenState extends State<SensorScreen> {
       59,
       59,
     );
-    final readings = await _fakeSensorService.getSensorsByDate(
+    final readings = await _sensorService.getSensorsByDate(
       startDate: startOfDay,
       endDate: endOfDay,
     );
@@ -77,8 +82,22 @@ class _SensorScreenState extends State<SensorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF3FA34D), Color(0xFF4C5D4D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: const Text('Sensor Data'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadReadings,
+            tooltip: 'Refresh',
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_today),
             onPressed: _selectDate,
@@ -105,128 +124,131 @@ class _SensorScreenState extends State<SensorScreen> {
             ),
           ),
           Expanded(
-            child:
-                _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _readings.isEmpty
-                    ? const Center(child: Text('No sensor data found.'))
-                    : ListView.builder(
-                      itemCount: _readings.length,
-                      itemBuilder: (context, index) {
-                        final r = _readings[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
+            child: RefreshIndicator(
+              onRefresh: _loadReadings,
+              child:
+                  _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _readings.isEmpty
+                      ? const Center(child: Text('No sensor data found.'))
+                      : ListView.builder(
+                        itemCount: _readings.length,
+                        itemBuilder: (context, index) {
+                          final r = _readings[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical: 18,
+                              vertical: 8,
                             ),
-                            child: Row(
-                              children: [
-                                // Icon or colored circle for temperature
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.blue.shade50,
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 18,
+                              ),
+                              child: Row(
+                                children: [
+                                  // Icon or colored circle for temperature
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.blue.shade50,
+                                    ),
+                                    child: const Icon(
+                                      Icons.sensors,
+                                      color: Colors.blue,
+                                      size: 28,
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.sensors,
-                                    color: Colors.blue,
-                                    size: 28,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                // Sensor values
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.thermostat,
-                                            size: 18,
-                                            color: Colors.redAccent,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${r.temperature.toStringAsFixed(1)}°C',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                  const SizedBox(width: 16),
+                                  // Sensor values
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.thermostat,
+                                              size: 18,
+                                              color: Colors.redAccent,
                                             ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          const Icon(
-                                            Icons.water_drop,
-                                            size: 18,
-                                            color: Colors.blueAccent,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${r.humidity.toStringAsFixed(1)}%',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${r.temperature.toStringAsFixed(1)}°C',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          const Icon(
-                                            Icons.grass,
-                                            size: 18,
-                                            color: Colors.green,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${r.waterCapacity.toStringAsFixed(1)}%',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                            const SizedBox(width: 16),
+                                            const Icon(
+                                              Icons.water_drop,
+                                              size: 18,
+                                              color: Colors.blueAccent,
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.access_time,
-                                            size: 16,
-                                            color: Colors.grey,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            DateFormat(
-                                              'yyyy-MM-dd HH:mm:ss',
-                                            ).format(
-                                              r.timestamp ?? DateTime.now(),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${r.humidity.toStringAsFixed(1)}%',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
                                             ),
-                                            style: const TextStyle(
+                                            const SizedBox(width: 16),
+                                            const Icon(
+                                              Icons.grass,
+                                              size: 18,
+                                              color: Colors.green,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${r.waterCapacity.toStringAsFixed(1)}%',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.access_time,
+                                              size: 16,
                                               color: Colors.grey,
-                                              fontSize: 13,
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              DateFormat(
+                                                'yyyy-MM-dd HH:mm:ss',
+                                              ).format(
+                                                r.timestamp ?? DateTime.now(),
+                                              ),
+                                              style: const TextStyle(
+                                                color: Colors.grey,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
+            ),
           ),
         ],
       ),

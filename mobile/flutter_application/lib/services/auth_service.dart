@@ -28,10 +28,11 @@ class AuthService {
             }),
           )
           .timeout(const Duration(seconds: 5));
-      final data = jsonDecode(response.body);
-      print('Register response: ${response.statusCode} - ${data.toString()}');
+      final result = jsonDecode(response.body);
+      print('Register response: ${response.statusCode} - ${result.toString()}');
       if (response.statusCode == 201) {
         final prefs = await SharedPreferences.getInstance();
+        final data = result['data'] ?? result; // Handle both cases
         await prefs.setString('token', data['token']);
         await prefs.setString('user', jsonEncode(data['user']));
         return true;
@@ -137,18 +138,19 @@ class AuthService {
 
   // Update user details
   Future<Map<String, dynamic>> updateDetails(
+    String userId,
     String fullName,
-    String email,
+    String phoneNumber,
   ) async {
     try {
       final token = await getToken();
       final response = await http.put(
-        Uri.parse('$baseUrl/auth/updatedetails'),
+        Uri.parse('$baseUrl/users/$userId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'fullName': fullName, 'email': email}),
+        body: jsonEncode({'name': fullName, 'phoneNumber': phoneNumber}),
       );
 
       final data = jsonDecode(response.body);
@@ -186,15 +188,16 @@ class AuthService {
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final result = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         // Update the token
+        final data = result['data'] ?? result; // Handle both cases
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         return true;
       } else {
-        throw Exception(data['message'] ?? 'Error changing password');
+        throw Exception(result['message'] ?? 'Error changing password');
       }
     } catch (e) {
       print('Change password error: $e');
@@ -244,6 +247,49 @@ class AuthService {
       }
     } catch (e) {
       print('Reset password error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> saveLastPumpActivatedTime(String pumpId, DateTime time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'pump_last_activated_$pumpId',
+      time.toIso8601String(),
+    );
+  }
+
+  Future<DateTime?> getLastPumpActivatedTime(String pumpId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final str = prefs.getString('pump_last_activated_$pumpId');
+    if (str == null) return null;
+    return DateTime.tryParse(str);
+  }
+
+  // Delete account
+  Future<bool> deleteAccount( String? userId) async {
+    try {
+      final token = await getToken();
+     
+      final response = await http.delete(
+        Uri.parse('$baseUrl/users/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        // Remove local user data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('token');
+        await prefs.remove('user');
+        return true;
+      } else {
+        final data = jsonDecode(response.body);
+        throw Exception(data['message'] ?? 'Error deleting account');
+      }
+    } catch (e) {
+      print('Delete account error: $e');
       rethrow;
     }
   }

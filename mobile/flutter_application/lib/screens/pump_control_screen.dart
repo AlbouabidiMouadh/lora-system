@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application/models/pump.dart';
 import 'package:flutter_application/models/pump_status.dart';
 import 'package:flutter_application/services/pump_service.dart';
+import 'package:flutter_application/services/auth_service.dart';
 
 class PumpControlScreen extends StatefulWidget {
-  final Pump pump;
-  const PumpControlScreen({super.key, required this.pump});
+  final String pumpId;
+  const PumpControlScreen({super.key, required this.pumpId});
 
   @override
   State<PumpControlScreen> createState() => _PumpControlScreenState();
@@ -15,31 +16,50 @@ class PumpControlScreen extends StatefulWidget {
 
 class _PumpControlScreenState extends State<PumpControlScreen> {
   final PumpService _pumpService = PumpService();
+  Pump? _pump;
   bool? _currentPumpState;
   bool _isProcessing = false;
   String? _errorMessage;
   Timer? _pollingTimer;
 
-  Duration _selectedDuration = Duration.zero;
-  Duration _remainingDuration = Duration.zero;
-  Timer? _countdownTimer;
-  bool _isTimerRunning = false;
+  DateTime? _lastActivatedTime;
 
-  final List<Duration> _availableDurations = [
-    Duration.zero,
-    const Duration(minutes: 5),
-    const Duration(minutes: 10),
-    const Duration(minutes: 15),
-    const Duration(minutes: 30),
-    const Duration(hours: 1),
-    const Duration(hours: 2),
-  ];
+  Timer? _countdownTimer;
+
+  bool? _pendingPumpState;
+  DateTime? _pendingStateTime;
+  final Duration _pendingGracePeriod = const Duration(seconds: 8);
 
   @override
   void initState() {
     super.initState();
-    _currentPumpState = widget.pump.status == PumpStatus.on;
-    _startPolling();
+    _fetchPump();
+    _loadLastActivatedTime();
+    // _startPolling will be called after fetching pump
+  }
+
+  Future<void> _fetchPump() async {
+    final pump = await _pumpService.getPumpById(widget.pumpId);
+    if (mounted) {
+      setState(() {
+        _pump = pump;
+        _currentPumpState = pump?.status == PumpStatus.on;
+      });
+      _startPolling();
+    }
+  }
+
+  Future<void> _loadLastActivatedTime() async {
+    final authService = AuthService();
+    final time = await authService.getLastPumpActivatedTime(widget.pumpId);
+    setState(() {
+      _lastActivatedTime = time;
+    });
+  }
+
+  Future<void> _saveLastActivatedTime(DateTime time) async {
+    final authService = AuthService();
+    await authService.saveLastPumpActivatedTime(widget.pumpId, time);
   }
 
   @override
@@ -50,7 +70,9 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
   }
 
   void _startPolling() {
+    _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      final now = DateTime.now();
       if (!_isProcessing && mounted) {
         _fetchPumpStatus(showLoading: false);
       }
@@ -66,13 +88,32 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
       });
     }
     try {
-      // No direct service call, just refresh UI from model
+      final latestPump = await _pumpService.getPumpById(widget.pumpId);
+      final now = DateTime.now();
+      bool inPending = false;
+      if (_pendingPumpState != null && _pendingStateTime != null) {
+        inPending =
+            now.difference(_pendingStateTime!).inMilliseconds <
+            _pendingGracePeriod.inMilliseconds;
+      }
       setState(() {
-        _currentPumpState = widget.pump.status == PumpStatus.on;
-        _errorMessage = null;
-        if (_isTimerRunning && _currentPumpState == false) {
+        _pump = latestPump;
+        // If in pending window and backend disagrees, ignore backend
+        if (inPending &&
+            latestPump?.status ==
+                (_pendingPumpState! ? PumpStatus.off : PumpStatus.on)) {
+          debugPrint("Ignoring backend status during grace period");
+        } else {
+          _currentPumpState = latestPump?.status == PumpStatus.on;
+          _errorMessage = null;
+          if (_pendingPumpState != null &&
+              _currentPumpState == _pendingPumpState) {
+            _pendingPumpState = null;
+            _pendingStateTime = null;
+          }
+        }
+        if (_currentPumpState == false) {
           debugPrint("Polling detected pump is OFF, cancelling timer.");
-          _cancelCountdownTimer();
         }
       });
     } catch (e) {
@@ -91,98 +132,44 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
     }
   }
 
-  String get _formattedRemainingTime {
-    if (_remainingDuration.inSeconds <= 0) return '00:00';
-    int minutes = _remainingDuration.inMinutes;
-    int seconds = _remainingDuration.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  void _startCountdownTimer() {
-    if (_selectedDuration == Duration.zero || _isTimerRunning) {
-      return;
-    }
-
-    _countdownTimer?.cancel();
-
-    setState(() {
-      _isTimerRunning = true;
-      _remainingDuration = _selectedDuration;
-      _errorMessage = null;
-    });
-
-    debugPrint("Timer started for \\${_selectedDuration.inMinutes} minutes.");
-
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        if (_remainingDuration.inSeconds > 0) {
-          _remainingDuration = _remainingDuration - const Duration(seconds: 1);
-        } else {
-          debugPrint("Timer expired. Turning pump OFF.");
-          _countdownTimer?.cancel();
-          _isTimerRunning = false;
-          _remainingDuration = Duration.zero;
-        }
-      });
-      if (_remainingDuration.inSeconds == 0) {
-        // Turn off pump automatically when timer finishes
-        await _pumpService.updatePumpStatus(
-          id: widget.pump.id,
-          status: PumpStatus.off,
-        );
-        if (mounted) {
-          setState(() {
-            _currentPumpState = false;
-          });
-        }
-      }
-    });
-  }
-
-  void _cancelCountdownTimer() {
-    if (!_isTimerRunning) return;
-
-    debugPrint("Timer cancelled.");
-    _countdownTimer?.cancel();
-    setState(() {
-      _isTimerRunning = false;
-      _remainingDuration = Duration.zero;
-    });
-  }
-
   Future<void> _setPumpState(bool newState) async {
     if (_isProcessing) return;
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
+      _pendingPumpState = newState;
+      _pendingStateTime = DateTime.now();
     });
     try {
       final success = await _pumpService.updatePumpStatus(
-        id: widget.pump.id,
+        id: widget.pumpId,
         status: newState ? PumpStatus.on : PumpStatus.off,
       );
       if (success && mounted) {
+        _pollingTimer?.cancel();
         setState(() {
-          // Can't update final field, just update UI state
           _currentPumpState = newState;
           _errorMessage = null;
-          if (!newState) {
-            _cancelCountdownTimer();
+          if (newState) {
+            final now = DateTime.now();
+            _lastActivatedTime = now;
+            _saveLastActivatedTime(now);
           }
+        });
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) _startPolling();
         });
       } else if (mounted) {
         _errorMessage = newState ? "Start failed" : "Stop failed";
         _fetchPumpStatus(showLoading: false);
+        _startPolling();
       }
     } catch (e) {
       debugPrint("Error in _setPumpState: $e");
       if (mounted) {
         _errorMessage = newState ? "Start failed" : "Stop failed";
         _fetchPumpStatus(showLoading: false);
+        _startPolling();
       }
     } finally {
       if (mounted) {
@@ -199,51 +186,7 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
     if (_currentPumpState == true) {
       _setPumpState(false);
     } else {
-      if (_selectedDuration != Duration.zero) {
-        _startPumpTimed();
-      } else {
-        _setPumpState(true);
-      }
-    }
-  }
-
-  Future<void> _startPumpTimed() async {
-    if (_isProcessing ||
-        _isTimerRunning ||
-        _selectedDuration == Duration.zero) {
-      return;
-    }
-    setState(() {
-      _isProcessing = true;
-      _errorMessage = null;
-    });
-    try {
-      final success = await _pumpService.updatePumpStatus(
-        id: widget.pump.id,
-        status: PumpStatus.on,
-      );
-      if (success && mounted) {
-        setState(() {
-          _currentPumpState = true;
-          _errorMessage = null;
-        });
-        _startCountdownTimer();
-      } else if (mounted) {
-        _errorMessage = "Start failed";
-        _fetchPumpStatus(showLoading: false);
-      }
-    } catch (e) {
-      debugPrint("Error starting pump for timer: $e");
-      if (mounted) {
-        _errorMessage = "Start failed";
-        _fetchPumpStatus(showLoading: false);
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
-      }
+      _setPumpState(true);
     }
   }
 
@@ -252,11 +195,6 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
     final theme = Theme.of(context);
 
     final bool canInteractButton = _currentPumpState != null && !_isProcessing;
-    final bool canSelectDuration =
-        !_isTimerRunning &&
-        !_isProcessing &&
-        !(_currentPumpState == true && _selectedDuration == Duration.zero);
-
     final bool isCurrentlyOn = _currentPumpState == true;
 
     final Color activeColor = Colors.green.shade500;
@@ -273,178 +211,167 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
       currentBgColor = isCurrentlyOn ? activeColor : inactiveColor;
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-      elevation: 4.0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      clipBehavior: Clip.antiAlias,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              theme.cardColor,
-              theme.colorScheme.brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.greenAccent.shade400,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_pump?.name ?? 'Pump'),
+        backgroundColor: currentBgColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              if (!_isProcessing) {
+                _fetchPumpStatus();
+                _loadLastActivatedTime();
+              }
+            },
           ),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            const double baseWidth = 350.0;
-            final double scaleFactor = (constraints.maxWidth / baseWidth).clamp(
-              0.85,
-              1.3,
-            );
-
-            final double verticalPadding = 20.0 * scaleFactor;
-            final double horizontalPadding = max(
-              16.0,
-              24.0 * scaleFactor * 0.8,
-            );
-
-            final double titleTimerSpacing = 20.0 * scaleFactor;
-            final double timerButtonSpacing = 50.0 * scaleFactor;
-            final double buttonStatusSpacing = 16.0 * scaleFactor;
-            final double statusErrorSpacing = 8.0 * scaleFactor;
-            final double errorTopSpacing = 8.0 * scaleFactor;
-
-            final TextStyle titleStyle = theme.textTheme.headlineSmall!
-                .copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize:
-                      (theme.textTheme.headlineSmall!.fontSize ?? 24) *
-                      scaleFactor.clamp(0.9, 1.1),
-                );
-            final TextStyle statusStyle = theme.textTheme.titleMedium!.copyWith(
-              fontSize:
-                  (theme.textTheme.titleMedium!.fontSize ?? 16) *
-                  scaleFactor.clamp(0.9, 1.1),
-            );
-            final TextStyle errorStyle = theme.textTheme.bodyMedium!.copyWith(
-              color: theme.colorScheme.error,
-              fontSize: 13 * scaleFactor.clamp(0.9, 1.05),
-            );
-
-            return Padding(
-              padding: EdgeInsets.only(
-                top: verticalPadding,
-                bottom: verticalPadding,
-                left: horizontalPadding,
-                right: horizontalPadding,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Pump Control', style: titleStyle),
-                  SizedBox(height: titleTimerSpacing),
-
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedOpacity(
-                        opacity: _isTimerRunning ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child:
-                            _isTimerRunning
-                                ? Column(
-                                  children: [
-                                    Text(
-                                      'Time Remaining',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                    ),
-                                    Text(
-                                      _formattedRemainingTime,
-                                      style: theme.textTheme.headlineMedium!
-                                          .copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blueGrey.shade700,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                  ],
-                                )
-                                : const SizedBox.shrink(),
+        ],
+      ),
+      body: SafeArea(
+        child:
+            _pump == null
+                ? const Center(child: CircularProgressIndicator())
+                : Container(
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 10.0,
+                    ),
+                    elevation: 4.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.cardColor,
+                            theme.colorScheme.brightness == Brightness.dark
+                                ? Colors.white
+                                : Colors.greenAccent.shade400,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          const double baseWidth = 350.0;
+                          final double scaleFactor = (constraints.maxWidth /
+                                  baseWidth)
+                              .clamp(0.85, 1.3);
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Run for: ', style: theme.textTheme.bodyMedium),
-                          DropdownButton<Duration>(
-                            value: _selectedDuration,
-                            items:
-                                _availableDurations.map((duration) {
-                                  String text;
-                                  if (duration == Duration.zero) {
-                                    text = 'Manual';
-                                  } else if (duration.inMinutes < 60) {
-                                    text = '${duration.inMinutes} min';
-                                  } else {
-                                    text = '${duration.inHours} hr';
-                                  }
-                                  return DropdownMenuItem(
-                                    value: duration,
-                                    child: Text(text),
-                                  );
-                                }).toList(),
+                          final double verticalPadding = 20.0 * scaleFactor;
+                          final double horizontalPadding = max(
+                            16.0,
+                            24.0 * scaleFactor * 0.8,
+                          );
 
-                            onChanged:
-                                canSelectDuration
-                                    ? (Duration? newValue) {
-                                      if (newValue != null) {
-                                        setState(() {
-                                          _selectedDuration = newValue;
-                                        });
-                                      }
-                                    }
-                                    : null,
-                          ),
-                        ],
+                          final double titleTimerSpacing = 20.0 * scaleFactor;
+                          final double timerButtonSpacing = 50.0 * scaleFactor;
+                          final double buttonStatusSpacing = 16.0 * scaleFactor;
+                          final double statusErrorSpacing = 8.0 * scaleFactor;
+                          final double errorTopSpacing = 8.0 * scaleFactor;
+
+                          final TextStyle titleStyle = theme
+                              .textTheme
+                              .headlineSmall!
+                              .copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize:
+                                    (theme.textTheme.headlineSmall!.fontSize ??
+                                        24) *
+                                    scaleFactor.clamp(0.9, 1.1),
+                              );
+                          final TextStyle statusStyle = theme
+                              .textTheme
+                              .titleMedium!
+                              .copyWith(
+                                fontSize:
+                                    (theme.textTheme.titleMedium!.fontSize ??
+                                        16) *
+                                    scaleFactor.clamp(0.9, 1.1),
+                              );
+                          final TextStyle errorStyle = theme
+                              .textTheme
+                              .bodyMedium!
+                              .copyWith(
+                                color: theme.colorScheme.error,
+                                fontSize: 13 * scaleFactor.clamp(0.9, 1.05),
+                              );
+
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              top: verticalPadding,
+                              bottom: verticalPadding,
+                              left: horizontalPadding,
+                              right: horizontalPadding,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Pump Control', style: titleStyle),
+                                SizedBox(height: titleTimerSpacing),
+                                if (_lastActivatedTime != null)
+                                  Text(
+                                    'Last activated: '
+                                    '${_lastActivatedTime != null ? _formatDateTime(_lastActivatedTime!) : 'N/A'}',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: Colors.blueGrey.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                SizedBox(height: timerButtonSpacing),
+                                _buildCentralControlButton(
+                                  context,
+                                  constraints,
+                                  scaleFactor,
+                                  isCurrentlyOn,
+                                  canInteractButton,
+                                  currentBgColor,
+                                ),
+                                SizedBox(height: buttonStatusSpacing),
+                                _buildStatusText(
+                                  context,
+                                  statusStyle,
+                                  currentBgColor,
+                                ),
+                                SizedBox(height: statusErrorSpacing),
+                                _buildWaterLevelPot(),
+                                Container(
+                                  constraints: const BoxConstraints(
+                                    minHeight: 20,
+                                  ),
+                                  child:
+                                      _errorMessage != null
+                                          ? Padding(
+                                            padding: EdgeInsets.only(
+                                              top: errorTopSpacing,
+                                            ),
+                                            child: Text(
+                                              _errorMessage!,
+                                              style: errorStyle,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          )
+                                          : null,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                    ],
+                    ),
                   ),
-
-                  SizedBox(height: timerButtonSpacing),
-
-                  _buildCentralControlButton(
-                    context,
-                    constraints,
-                    scaleFactor,
-                    isCurrentlyOn,
-                    canInteractButton,
-                    currentBgColor,
-                  ),
-                  SizedBox(height: buttonStatusSpacing),
-                  _buildStatusText(context, statusStyle, currentBgColor),
-                  SizedBox(height: statusErrorSpacing),
-                  _buildWaterLevelPot(),
-                  Container(
-                    constraints: const BoxConstraints(minHeight: 20),
-                    child:
-                        _errorMessage != null
-                            ? Padding(
-                              padding: EdgeInsets.only(top: errorTopSpacing),
-                              child: Text(
-                                _errorMessage!,
-                                style: errorStyle,
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                            : null,
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+                ),
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
   }
 
   Widget _buildCentralControlButton(
@@ -477,20 +404,19 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
                 offset: const Offset(0, 2),
                 blurRadius: 4,
               ),
-            if (canInteract && !isOn && !_isTimerRunning)
+            if (canInteract && !isOn)
               BoxShadow(
                 color: Colors.black.withOpacity(0.2),
                 offset: const Offset(1, 1),
                 blurRadius: 3,
                 spreadRadius: -2,
               ),
-            if (canInteract && (isOn || _isTimerRunning))
+            if (canInteract && (isOn))
               BoxShadow(
                 color: bgColor.withOpacity(0.6),
                 blurRadius: 12,
                 spreadRadius: 2,
               ),
-
             BoxShadow(
               color: Colors.black.withOpacity(0.15),
               blurRadius: 5,
@@ -514,7 +440,6 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
                     transitionBuilder: (child, animation) {
                       return ScaleTransition(scale: animation, child: child);
                     },
-
                     child: Icon(
                       isOn ? Icons.power_settings_new : Icons.power_off,
                       key: ValueKey<bool>(isOn),
@@ -541,10 +466,6 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
       text = "UPDATING...";
       textColor = const Color.fromARGB(255, 123, 122, 120);
       weight = FontWeight.normal;
-    } else if (_isTimerRunning) {
-      text = "TIMED ACTIVE";
-      textColor = Colors.blueGrey.shade700;
-      weight = FontWeight.bold;
     } else if (_currentPumpState == null) {
       text = "STATUS UNKNOWN";
       textColor = theme.textTheme.bodySmall?.color ?? Colors.grey;
@@ -600,7 +521,7 @@ class _PumpControlScreenState extends State<PumpControlScreen> {
                     left: BorderSide(width: 6, color: Colors.brown.shade400),
                     right: BorderSide(width: 6, color: Colors.brown.shade400),
                   ),
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(8),
                     bottomRight: Radius.circular(8),
                   ),

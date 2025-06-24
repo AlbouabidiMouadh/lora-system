@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_application/models/notification_model.dart';
 import 'package:flutter_application/models/reason.dart';
@@ -13,20 +14,43 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   final AbstractNotificationService notificationService = NotificationService();
-
   late Future<List<NotificationModel>> _notificationsFuture;
 
   @override
   void initState() {
     super.initState();
-    _notificationsFuture = notificationService.getNotifications();
+    _loadNotifications();
     notificationService.markAllAsSeen();
+  }
+
+  void _loadNotifications() {
+    setState(() {
+      _notificationsFuture = notificationService.getNotifications();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF3FA34D), Color(0xFF4C5D4D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text('Notifications'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadNotifications,
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
       body: FutureBuilder<List<NotificationModel>>(
         future: _notificationsFuture,
         builder: (context, snapshot) {

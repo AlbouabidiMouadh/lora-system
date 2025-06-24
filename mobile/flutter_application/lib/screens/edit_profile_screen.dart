@@ -38,10 +38,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final authService = AuthService();
       final updated = await authService.updateDetails(
+        widget.user?.id ?? '',
         _nameController.text.trim(),
-        widget.user?.email ?? '',
+        _phoneController.text.trim(),
       );
       if (updated['success'] == true) {
+        widget.user?.name = _nameController.text.trim();
+        widget.user?.phoneNumber = _phoneController.text.trim();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully.')),
         );

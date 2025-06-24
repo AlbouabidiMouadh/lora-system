@@ -25,14 +25,13 @@ dependencies:
   geocoding: ^2.0.5 
   flutter_map: ^6.2.1
   latlong2: ^0.9.1
-  web_socket_channel: ^2.4.0 
-  provider: ^6.1.1        
+      
   google_maps_flutter: ^2.5.0 
   shared_preferences: ^2.2.2 
   flutter_map_marker_popup: ^6.1.2
   month_year_picker: 0.4.0+1
   flutter_localization: ^0.3.2
-  shimmer: ^3.0.0
+  visibility_detector: ^0.4.0
   percent_indicator: ^4.2.3
   app_links: ^6.4.0
   uri: ^1.0.0

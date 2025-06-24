@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application/models/pump.dart';
 import 'package:flutter_application/screens/pump_control_screen.dart';
@@ -6,7 +8,8 @@ import 'package:flutter_application/services/pump_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
-import 'package:flutter_application/services/fake_pump_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+
 import 'package:collection/collection.dart';
 
 class MapScreen extends StatefulWidget {
@@ -16,7 +19,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final AbstractPumpService _fakePumpService = PumpService();
+  final AbstractPumpService _pumpService = PumpService();
   List<Pump> _pumps = [];
   final MapController _mapController = MapController();
   final PopupController _popupLayerController = PopupController();
@@ -30,14 +33,39 @@ class _MapScreenState extends State<MapScreen> {
   static const double _kMaxZoom = 18.0;
   static const double _kMinZoom = 3.0;
 
+  Timer? _refreshTimer;
+  bool _isVisible = false;
+
   @override
   void initState() {
     super.initState();
-    _loadFakePumps();
+    _loadPumps();
+    // Do not start timer here; let visibility detector handle it
   }
 
-  Future<void> _loadFakePumps() async {
-    final pumps = await _fakePumpService.getAllPumps();
+  void _handleVisibilityChanged(VisibilityInfo info) {
+    final visible = info.visibleFraction > 0.5;
+    if (visible && !_isVisible) {
+      _isVisible = true;
+      _startAutoRefresh();
+    } else if (!visible && _isVisible) {
+      _isVisible = false;
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    }
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        _loadPumps();
+      }
+    });
+  }
+
+  Future<void> _loadPumps() async {
+    final pumps = await _pumpService.getAllPumps();
     setState(() {
       _pumps = pumps;
       if (_pumps.isNotEmpty) {
@@ -89,6 +117,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _popupLayerController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -109,7 +138,10 @@ class _MapScreenState extends State<MapScreen> {
     final lastSensor =
         (pump.sensors.isNotEmpty)
             ? pump.sensors.reduce(
-              (a, b) => a.timestamp?.isAfter(b.timestamp ?? DateTime.now()) ?? true ? a : b,
+              (a, b) =>
+                  a.timestamp?.isAfter(b.timestamp ?? DateTime.now()) ?? false
+                      ? a
+                      : b,
             )
             : null;
     return Card(
@@ -163,14 +195,9 @@ class _MapScreenState extends State<MapScreen> {
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () {
-                  Navigator.push(
-                    context,
+                  Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder:
-                          (context) => SensorScreen(
-                            pumpId: pump.id,
-                        
-                          ),
+                      builder: (context) => SensorScreen(pumpId: pump.id),
                     ),
                   );
                 },
@@ -190,7 +217,7 @@ class _MapScreenState extends State<MapScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => PumpControlScreen(pump: pump),
+                      builder: (context) => PumpControlScreen(pumpId: pump.id),
                     ),
                   );
                 },
@@ -205,73 +232,96 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sensor Map'), centerTitle: true),
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentLocation ?? _kInitialPosition,
-              initialZoom:
-                  _currentLocation != null ? _kSensorZoom : _kInitialZoom,
-              maxZoom: _kMaxZoom,
-              minZoom: _kMinZoom,
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.drag | InteractiveFlag.flingAnimation,
+    return VisibilityDetector(
+      key: const Key('map-screen-visibility'),
+      onVisibilityChanged: _handleVisibilityChanged,
+      child: Scaffold(
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF3FA34D), Color(0xFF4C5D4D)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.app',
-              ),
-              PopupMarkerLayer(
-                options: PopupMarkerLayerOptions(
-                  popupController: _popupLayerController,
-                  markers: _markers,
-                  popupDisplayOptions: PopupDisplayOptions(
-                    builder: _buildPopupWidget,
-                    snap: PopupSnap.markerTop,
-                  ),
-                  markerTapBehavior: MarkerTapBehavior.togglePopup(),
-                ),
-              ),
-            ],
           ),
-          // Boutons de zoom
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                FloatingActionButton(
-                  heroTag: "zoomInButton",
-                  mini: true,
-                  onPressed: _zoomIn,
-                  child: const Icon(Icons.add),
+          title: const Text('Sensor Map'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadPumps,
+              tooltip: 'Refresh',
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _currentLocation ?? _kInitialPosition,
+                initialZoom:
+                    _currentLocation != null ? _kSensorZoom : _kInitialZoom,
+                maxZoom: _kMaxZoom,
+                minZoom: _kMinZoom,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.drag | InteractiveFlag.flingAnimation,
                 ),
-                const SizedBox(height: 8),
-                FloatingActionButton(
-                  heroTag: "zoomOutButton",
-                  mini: true,
-                  onPressed: _zoomOut,
-                  child: const Icon(Icons.remove),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.app',
+                ),
+                PopupMarkerLayer(
+                  options: PopupMarkerLayerOptions(
+                    popupController: _popupLayerController,
+                    markers: _markers,
+                    popupDisplayOptions: PopupDisplayOptions(
+                      builder: _buildPopupWidget,
+                      snap: PopupSnap.markerTop,
+                    ),
+                    markerTapBehavior: MarkerTapBehavior.togglePopup(),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            // Boutons de zoom
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  FloatingActionButton(
+                    heroTag: "zoomInButton",
+                    mini: true,
+                    onPressed: _zoomIn,
+                    child: const Icon(Icons.add),
+                  ),
+                  const SizedBox(height: 8),
+                  FloatingActionButton(
+                    heroTag: "zoomOutButton",
+                    mini: true,
+                    onPressed: _zoomOut,
+                    child: const Icon(Icons.remove),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton:
+            _pumps.isEmpty
+                ? const FloatingActionButton(
+                  onPressed: null,
+                  child: CircularProgressIndicator(),
+                )
+                : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
-      floatingActionButton:
-          _pumps.isEmpty
-              ? const FloatingActionButton(
-                onPressed: null,
-                child: CircularProgressIndicator(),
-              )
-              : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

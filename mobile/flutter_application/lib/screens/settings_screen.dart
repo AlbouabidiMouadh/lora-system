@@ -33,6 +33,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  _navigateToEditProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => EditProfileScreen(user: _user)),
+    ).then((value) {
+      if (value == true) {
+        _loadUser(); // Reload user data after editing profile
+      }
+    });
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Account'),
+            content: const Text(
+              'Are you sure you want to delete your account? ',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+    if (confirmed == true) {
+      try {
+        final authService = AuthService();
+        await authService.deleteAccount(_user?.id);
+        // Optionally show a snackbar or dialog
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete account: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               : ListView(
                 children: [
                   _buildProfileHeader(),
-                  _buildSectionTitle('Preferences'),
+                  /*   _buildSectionTitle('Preferences'),
                   _buildSettingsCard(
                     children: [
                       _buildSwitchTile(
@@ -73,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onTap: () {},
                       ),
                     ],
-                  ),
+                  ),*/
                   _buildSectionTitle('Account'),
                   _buildSettingsCard(
                     children: [
@@ -83,13 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: 'Edit Profile',
                         onTap: () {
                           if (_user != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => EditProfileScreen(user: _user),
-                              ),
-                            );
+                            _navigateToEditProfile();
                           }
                         },
                       ),
@@ -106,6 +153,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   (context) => const ChangePasswordScreen(),
                             ),
                           );
+                        },
+                      ),
+                      const Divider(height: 1, indent: 58),
+                      _buildDelete(
+                        context,
+                        icon: Icons.delete,
+                        title: 'Delete Account',
+                        onTap: () {
+                          _deleteAccount();
                         },
                       ),
                     ],
@@ -151,12 +207,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: ElevatedButton.icon(
                         onPressed: () {
                           AuthService().logout();
-                          Navigator.pushAndRemoveUntil(
+                          Navigator.of(
                             context,
+                            rootNavigator: true,
+                          ).pushReplacement(
                             MaterialPageRoute(
                               builder: (context) => const LoginScreen(),
                             ),
-                            (route) => false,
                           );
                         },
                         icon: const Icon(
@@ -275,6 +332,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListTile(
       leading: Icon(icon, color: const Color(0xFF3FA34D)),
       title: Text(title, style: const TextStyle(fontSize: 16)),
+      subtitle: subtitle != null ? Text(subtitle) : null,
+      onTap: onTap,
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: Colors.grey,
+      ),
+    );
+  }
+    Widget _buildDelete(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color:  Colors.red),
+      title: Text(title, style: const TextStyle(fontSize: 16 , color: Colors.red)),
       subtitle: subtitle != null ? Text(subtitle) : null,
       onTap: onTap,
       trailing: const Icon(

@@ -40,15 +40,15 @@ class Sensor {
         );
       }
 
-      DateTime parseTimestamp(dynamic value) {
+      DateTime? parseTimestamp(dynamic value) {
         if (value == null) {
-          return DateTime.now().toLocal(); // Default to now if null
+          return null; // Default to now if null
         }
         if (value is String) {
           try {
             return DateTime.parse(value).toLocal();
           } catch (e) {
-            throw FormatException('Invalid timestamp format: "$value" - $e');
+            return null;
           }
         }
         throw FormatException(
@@ -57,8 +57,8 @@ class Sensor {
       }
 
       return Sensor(
-        temperature: parseToDouble(json['temperature'], 'temperature'),
-        humidity: parseToDouble(json['humidity'], 'humidity'),
+        temperature: parseToDouble(json['temperature'] ?? 0.0, 'temperature'),
+        humidity: parseToDouble(json['humidity'] ?? 0.0, 'humidity'),
         waterCapacity: parseToDouble(json['waterCapacity'], 'waterCapacity'),
         latitude: parseToDouble(json['latitude'], 'latitude'),
         longitude: parseToDouble(json['longitude'], 'longitude'),

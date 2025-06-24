@@ -110,6 +110,19 @@ class FakePumpService implements AbstractPumpService {
     return false;
   }
 
+  @override
+  Future<Pump?> getPumpById(String id) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    final pumpMap = _mockPumps.firstWhere(
+      (p) => p['_id'] == id,
+      orElse: () => <String, dynamic>{},
+    );
+    if (pumpMap.isNotEmpty) {
+      return Pump.fromJson(pumpMap);
+    }
+    return null;
+  }
+
   Future<List<Pump>> getPumps() async {
     await Future.delayed(const Duration(milliseconds: 300));
     return _mockPumps.map((e) => Pump.fromJson(e)).toList();

@@ -10,6 +10,8 @@ abstract class AbstractPumpService {
     required String id,
     required PumpStatus status,
   });
+
+  Future<Pump?> getPumpById(String id);
 }
 
 class PumpService implements AbstractPumpService {
@@ -33,7 +35,7 @@ class PumpService implements AbstractPumpService {
       }
     } catch (e) {
       debugPrint('[PumpService] Exception fetching all pumps: $e');
-      return [];
+      rethrow;
     }
   }
 
@@ -43,7 +45,7 @@ class PumpService implements AbstractPumpService {
     required PumpStatus status,
   }) async {
     try {
-      final response = await _apiService.put(
+      final response = await _apiService.patch(
         'pumps/$id/status',
         status.toJson(),
       );
@@ -55,6 +57,23 @@ class PumpService implements AbstractPumpService {
     } catch (e) {
       debugPrint('[PumpService] Exception updating pump status: $e');
       return false;
+    }
+  }
+
+  @override
+  Future<Pump?> getPumpById(String id) async {
+    try {
+      final response = await _apiService.get('pumps/$id');
+      if (response is Map &&
+          response['success'] == true &&
+          response['data'] != null) {
+        return Pump.fromJson(response['data']);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      debugPrint('[PumpService] Exception fetching pump by id: $e');
+      return null;
     }
   }
 }

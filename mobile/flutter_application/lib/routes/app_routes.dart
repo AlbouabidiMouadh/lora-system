@@ -71,9 +71,9 @@ class AppRoutes {
         );
       },
       pumpControl: (context) {
-        final args = ModalRoute.of(context)!.settings.arguments as Pump;
+        final args = ModalRoute.of(context)!.settings.arguments as String? ?? '';
 
-        return PumpControlScreen(pump: args);
+        return PumpControlScreen(pumpId: args);
       },
       notifications: (context) => const NotificationScreen(),
     };

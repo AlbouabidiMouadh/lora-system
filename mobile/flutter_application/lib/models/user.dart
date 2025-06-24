@@ -1,7 +1,7 @@
 class User {
   final String id;
-  final String? phoneNumber; 
-  final String name;
+   String? phoneNumber; 
+   String name;
   final String email;
 
 

@@ -1,14 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_application/screens/login_screen.dart';
 import 'package:flutter_application/screens/notification_screen.dart';
 import 'package:flutter_application/services/weather_service.dart';
+import 'package:flutter_application/utils/api_exception.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_application/services/fake_pump_service.dart';
 import 'package:flutter_application/services/pump_service.dart';
 import 'package:flutter_application/models/pump.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,20 +23,67 @@ class _HomeScreenState extends State<HomeScreen> {
   String city = 'Loading...', temperature = '...', description = 'Loading...';
   final AbstractPumpService _pumpService = PumpService();
   List<Pump> _pumps = [];
+  Timer? _refreshTimer;
+
+  bool _isVisible = false;
 
   @override
   void initState() {
     super.initState();
-
     determinePositionAndGenerateFakeSensor();
     _loadPumps();
+    // Do not start timer here; let visibility detector handle it
+  }
+
+  void _handleVisibilityChanged(VisibilityInfo info) {
+    final visible = info.visibleFraction > 0.5;
+    if (visible && !_isVisible) {
+      _isVisible = true;
+      _startAutoRefresh();
+    } else if (!visible && _isVisible) {
+      _isVisible = false;
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    }
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        _loadPumps();
+      }
+    });
   }
 
   Future<void> _loadPumps() async {
-    final pumps = await _pumpService.getAllPumps();
-    setState(() {
-      _pumps = pumps;
-    });
+    try {
+      final pumps = await _pumpService.getAllPumps();
+      if (!mounted) return;
+      setState(() {
+        _pumps = pumps;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      if (e is ApiException) {
+        if (e.message.contains('expired')) {
+          setState(() => description = 'Session expired. Please log in again.');
+
+          Navigator.of(context, rootNavigator: true).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        } else if (e.message.contains('not found')) {
+          setState(() => description = 'Pumps not found.');
+        } else {
+          setState(() => description = 'API Error: ${e.message}');
+        }
+      } else if (e is http.ClientException) {
+        setState(() => description = 'Request timed out. Please try again.');
+      } else {
+        setState(() => description = 'An unexpected error occurred: $e');
+      }
+    }
   }
 
   Future<void> determinePositionAndGenerateFakeSensor() async {
@@ -70,12 +120,14 @@ class _HomeScreenState extends State<HomeScreen> {
         lat,
         lon,
       );
+      if (!mounted) return;
       setState(() {
         city = weatherData.cityName;
         temperature = '${weatherData.temperature.toStringAsFixed(1)}°C';
         description = weatherData.description;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => description = 'Failed to load weather data: $e');
     }
   }
@@ -110,81 +162,114 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[300],
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: determinePositionAndGenerateFakeSensor,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Welcome back !',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey,
+    return VisibilityDetector(
+      key: const Key('home-screen-visibility'),
+      onVisibilityChanged: _handleVisibilityChanged,
+      child: Scaffold(
+        backgroundColor: Colors.grey[300],
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF3FA34D), Color(0xFF4C5D4D)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: const Text('Home'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadPumps,
+              tooltip: 'Refresh',
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await determinePositionAndGenerateFakeSensor();
+              await _loadPumps();
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Welcome back !',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
                       ),
-                    ),
-                    GestureDetector(
-                      onTap:
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const NotificationScreen(),
+                      GestureDetector(
+                        onTap:
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const NotificationScreen(),
+                              ),
                             ),
-                          ),
-                      child: const CircleAvatar(
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.notifications, color: Colors.black),
+                        child: const CircleAvatar(
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.notifications, color: Colors.black),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                WeatherCard(
-                  city: city,
-                  temperature: temperature,
-                  description: description,
-                ),
-                const SizedBox(height: 16),
-                ..._pumps.map((pump) {
-                  final lastSensor =
-                      (pump.sensors.isNotEmpty)
-                          ? pump.sensors.reduce(
-                            (a, b) => a.timestamp?.isAfter(b.timestamp ?? DateTime.now()) ?? false ? a : b,
-                          )
-                          : null;
-                  return StationCard(
-                    stationName: pump.name,
-                    temperature:
-                        lastSensor != null
-                            ? lastSensor.temperature.toStringAsFixed(1)
-                            : '...',
-                    humidity:
-                        lastSensor != null
-                            ? lastSensor.humidity.toStringAsFixed(1)
-                            : '...',
-                    moisture:
-                        lastSensor != null
-                            ? lastSensor.waterCapacity.toStringAsFixed(1)
-                            : '...',
-                    lastConnected:
-                        lastSensor != null
-                            ? lastSensor.timestamp.toString()
-                            : 'No data',
-                    onRename: (_) {}, // No-op, name is final
-                    onTapRename:
-                        () => renameStation((_) {}, pump.name), // No-op
-                  );
-                }).toList(),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  WeatherCard(
+                    city: city,
+                    temperature: temperature,
+                    description: description,
+                  ),
+                  const SizedBox(height: 16),
+                  ..._pumps.map((pump) {
+                    final lastSensor =
+                        (pump.sensors.isNotEmpty)
+                            ? pump.sensors.reduce(
+                              (a, b) =>
+                                  a.timestamp?.isAfter(
+                                            b.timestamp ?? DateTime.now(),
+                                          ) ??
+                                          false
+                                      ? a
+                                      : b,
+                            )
+                            : null;
+                    return StationCard(
+                      stationName: pump.name,
+                      temperature:
+                          lastSensor != null
+                              ? lastSensor.temperature.toStringAsFixed(1)
+                              : '...',
+                      humidity:
+                          lastSensor != null
+                              ? lastSensor.humidity.toStringAsFixed(1)
+                              : '...',
+                      moisture:
+                          lastSensor != null
+                              ? lastSensor.waterCapacity.toStringAsFixed(1)
+                              : '...',
+                      lastConnected:
+                          lastSensor != null
+                              ? lastSensor.timestamp.toString()
+                              : 'No data',
+                      onRename: (_) {}, // No-op, name is final
+                      onTapRename:
+                          () => renameStation((_) {}, pump.name), // No-op
+                    );
+                  }).toList(),
+                ],
+              ),
             ),
           ),
         ),
@@ -194,6 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     super.dispose();
   }
 }
@@ -319,7 +405,7 @@ class StationCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const Icon(Icons.battery_full, size: 20, color: Colors.green),
+                // const Icon(Icons.battery_full, size: 20, color: Colors.green),
               ],
             ),
           ),
