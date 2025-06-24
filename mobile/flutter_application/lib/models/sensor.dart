@@ -3,20 +3,20 @@ import 'package:flutter/foundation.dart';
 class Sensor {
   final double temperature;
   final double humidity;
-  final double moisture;
+  final double waterCapacity;
   final double latitude;
   final double longitude;
-  final DateTime timestamp;
+  final DateTime? timestamp;
   final String? userId;
   final String? pumpId;
 
   Sensor({
     required this.temperature,
     required this.humidity,
-    required this.moisture,
+    required this.waterCapacity,
     required this.latitude,
     required this.longitude,
-    required this.timestamp,
+    this.timestamp,
     this.userId,
     this.pumpId,
   });
@@ -42,7 +42,7 @@ class Sensor {
 
       DateTime parseTimestamp(dynamic value) {
         if (value == null) {
-          throw const FormatException('Field "timestamp" is missing');
+          return DateTime.now().toLocal(); // Default to now if null
         }
         if (value is String) {
           try {
@@ -59,7 +59,7 @@ class Sensor {
       return Sensor(
         temperature: parseToDouble(json['temperature'], 'temperature'),
         humidity: parseToDouble(json['humidity'], 'humidity'),
-        moisture: parseToDouble(json['moisture'], 'moisture'),
+        waterCapacity: parseToDouble(json['waterCapacity'], 'waterCapacity'),
         latitude: parseToDouble(json['latitude'], 'latitude'),
         longitude: parseToDouble(json['longitude'], 'longitude'),
         timestamp: parseTimestamp(json['timestamp']),

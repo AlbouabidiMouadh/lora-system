@@ -66,8 +66,8 @@ class AppRoutes {
         final args =
             ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
         return SensorScreen(
-          lat: args?['lat'] as double?,
-          lon: args?['lon'] as double?,
+          pumpId: args?['pumpId'] as String?,
+          
         );
       },
       pumpControl: (context) {
