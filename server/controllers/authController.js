@@ -24,12 +24,30 @@ exports.register = async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id);
+
+    // Send account creation confirmation email
+    const message = `
+      <h1>Welcome to Our Platform, ${user.name}!</h1>
+      <p>Your account has been successfully created.</p>
+      <p>If this wasn’t you, please contact our support immediately.</p>
+    `;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Account Created Successfully",
+        html: message,
+      });
+    } catch (err) {
+      console.error("Email send failed:", err.message);
+      // Optionally log, but don’t fail registration if email fails
+    }
+
     sendResponse(res, 201, true, "Registration successful", { token, user });
   } catch (err) {
     sendResponse(res, 500, false, err.message);
   }
 };
-
 /**
  * @function login
  * @description Authenticates a user with email and password, generates and returns a JWT token on success.
