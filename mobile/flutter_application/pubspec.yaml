@@ -35,6 +35,7 @@ dependencies:
   percent_indicator: ^4.2.3
   app_links: ^6.4.0
   uri: ^1.0.0
+  phone_numbers_parser: ^8.0.0
 
 
 dev_dependencies:

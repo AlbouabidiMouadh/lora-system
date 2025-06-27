@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application/routes/app_routes.dart';
 import 'package:flutter_application/screens/forgot_password_screen.dart';
+import 'package:flutter_application/screens/menu_screen.dart';
 import 'package:flutter_application/services/auth_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math';
+import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -98,7 +100,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return 'Please enter a full name';
                 }
                 if (value.length < 4) {
-                  return 'full Name must be at least 4 characters';
+                  return 'Full name must be at least 4 characters';
+                }
+                final namePattern = RegExp(r'^[A-Za-zÀ-ÿ]+( [A-Za-zÀ-ÿ]+)?$');
+                if (!namePattern.hasMatch(value.trim())) {
+                  return 'Name must contain only letters and at most one space.';
                 }
                 return null;
               },
@@ -112,8 +118,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter an email';
                 }
-                if (!value.contains('@') && value.length < 4) {
-                  return 'Enter a valid email or username (min 4 chars)';
+                final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                if (!emailRegex.hasMatch(value.trim())) {
+                  return 'Enter a valid email address';
                 }
                 return null;
               },
@@ -128,8 +135,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter a phone number';
                 }
-                if (value.length < 10) {
-                  return 'Phone number must be at least 10 digits';
+                final phone = value.trim();
+                // Accept only 8 digits or valid Tunisian number
+                final tunisianPattern = RegExp(r'^(\+216)?[2-9][0-9]{7}$');
+                if (!tunisianPattern.hasMatch(phone)) {
+                  return 'Enter a valid Tunisian phone number (8 digits or +216XXXXXXXX)';
+                }
+                // Use phone_numbers_parser for more robust validation
+                try {
+                  final parsed = PhoneNumber.parse(
+                    phone,
+                    callerCountry: IsoCode.TN,
+                  );
+                  if (!parsed.isValid()) {
+                    return 'Invalid Tunisian phone number';
+                  }
+                } catch (_) {
+                  return 'Invalid phone number format';
                 }
                 return null;
               },
@@ -158,8 +180,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a password';
                 }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
+                // Strong password: min 8 chars, upper, lower, digit, special char
+                final strongRegex = RegExp(
+                  r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$&*~_\-]).{8,}$',
+                );
+                if (!strongRegex.hasMatch(value)) {
+                  return 'Password must be at least 8 chars, include upper, lower, digit, and special char.';
                 }
                 return null;
               },
@@ -428,19 +454,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              Navigator.pushNamedAndRemoveUntil(
+              Navigator.pushReplacement(
                 context,
-                '/home',
-                (route) => false,
+                MaterialPageRoute(
+                  builder: (_) => const MenuScreen() ,
+                ),
               );
             }
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                "Registration Failed: Email might be taken .",
-              ),
+              content: Text("Registration Failed: Email might be taken ."),
               backgroundColor: Colors.redAccent,
             ),
           );
@@ -449,7 +474,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         debugPrint("Error during registration: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-          const  SnackBar(
+            const SnackBar(
               content: Text("An error occurred: Please try again later."),
               backgroundColor: Colors.red,
             ),

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application/routes/app_routes.dart';
+import 'package:flutter_application/screens/auth/reset_password_page.dart';
 import 'package:flutter_application/screens/logoscreen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    _initUniLinks();
 
     _controller = AnimationController(
       duration: const Duration(seconds: 10),
@@ -59,7 +61,6 @@ class _SplashScreenState extends State<SplashScreen>
         );
       });
     });
-      _initUniLinks();
   }
 
   void _initUniLinks() {
@@ -74,13 +75,18 @@ class _SplashScreenState extends State<SplashScreen>
     print("Uri : $uri");
     if (uri.host == 'reset-password') {
       final token = uri.queryParameters['resettoken'];
+      _controller.dispose();
+
       if (token != null) {
-        Navigator.of(
-          context,
-        ).pushNamed(AppRoutes.resetPassword, arguments: {'resettoken': token});
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ResetPasswordPage(token: token),
+          ),
+        );
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application/models/user.dart';
 import 'package:flutter_application/screens/change_password_screen.dart';
 import 'package:flutter_application/screens/edit_profile_screen.dart';
-import 'package:flutter_application/screens/login_screen.dart';
+import 'package:flutter_application/screens/auth/login_screen.dart';
 import 'package:flutter_application/services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {

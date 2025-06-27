@@ -113,11 +113,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     icon: Icons.lock_outline,
                     hintText: 'New Password',
                     obscureText: true,
-                    validator:
-                        (value) =>
-                            value == null || value.length < 6
-                                ? 'New password must be at least 6 characters'
-                                : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a password';
+                      }
+                      // Strong password: min 8 chars, upper, lower, digit, special char
+                      final strongRegex = RegExp(
+                        r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$&*~_\-]).{8,}$',
+                      );
+                      if (!strongRegex.hasMatch(value)) {
+                        return 'Password must be at least 8 chars, include upper, lower, digit, and special char.';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 30),
                   SizedBox(

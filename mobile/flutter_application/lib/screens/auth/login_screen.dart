@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application/screens/forgot_password_screen.dart';
 import 'package:flutter_application/screens/home_screen.dart';
 import 'package:flutter_application/screens/menu_screen.dart';
-import 'package:flutter_application/screens/register_screen.dart';
+import 'package:flutter_application/screens/auth/register_screen.dart';
 import 'package:flutter_application/services/auth_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 

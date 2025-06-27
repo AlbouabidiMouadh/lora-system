@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const sendEmail = require("../utils/sendMail");
+
 const { sendResponse, generateToken } = require("../utils/helpers");
 
 /**
@@ -185,19 +187,10 @@ exports.resetPassword = async (req, res) => {
       return sendResponse(res, 400, false, "Invalid or expired token");
     }
 
-    // Verify current password
-    const isMatch = await user.matchPassword(req.query.currentPassword);
-    if (!isMatch) {
-      return sendResponse(res, 401, false, "Current password is incorrect");
-    }
-
-    // Check if new password is provided
-    if (!req.query.newPassword) {
-      return sendResponse(res, 400, false, "New password is required");
-    }
+  
 
     // Set new password and clear reset fields
-    user.password = req.query.newPassword;
+    user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application/screens/login_screen.dart';
+import 'package:flutter_application/screens/auth/login_screen.dart';
 import 'package:flutter_application/services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -183,6 +183,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               "If an account exists for this email, a reset link has been sent.",
             ),
           ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

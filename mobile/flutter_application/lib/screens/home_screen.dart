@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_application/screens/login_screen.dart';
+import 'package:flutter_application/screens/auth/login_screen.dart';
 import 'package:flutter_application/screens/notification_screen.dart';
 import 'package:flutter_application/services/weather_service.dart';
 import 'package:flutter_application/utils/api_exception.dart';

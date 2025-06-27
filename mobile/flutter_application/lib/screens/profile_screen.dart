@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application/models/user.dart';
 import 'package:flutter_application/screens/edit_profile_screen.dart';
-import 'package:flutter_application/screens/login_screen.dart';
+import 'package:flutter_application/screens/auth/login_screen.dart';
 import 'package:flutter_application/services/auth_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
